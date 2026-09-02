@@ -26,6 +26,7 @@
 #include <string.h>
 
 #include "def.h"
+#include "utf8.h"
 
 int	casereplace = TRUE;
 
@@ -57,6 +58,7 @@ lalloc(int used)
 	lp->l_text = NULL;
 	lp->l_size = 0;
 	lp->l_used = used;	/* XXX */
+	lp->l_synstate = 0;
 	if (lrealloc(lp, used) == FALSE) {
 		free(lp);
 		return (NULL);
@@ -241,6 +243,84 @@ linsert(int n, int c)
 		}
 	}
 	undo_add_insert(curwp->w_dotp, doto, n);
+	return (TRUE);
+}
+
+/*
+ * Insert `len' bytes from `buf' at dot.  Used for multi-byte
+ * (UTF-8) character insertion.  Otherwise analogous to linsert(1, c)
+ * but with a buffer instead of a single repeated byte.
+ */
+int
+linsert_buf(const char *buf, int len)
+{
+	struct line	*lp1;
+	struct mgwin	*wp;
+	int		 doto, i;
+	int		 s;
+
+	if (len <= 0)
+		return (TRUE);
+
+	if ((s = checkdirty(curbp)) != TRUE)
+		return (s);
+	if (curbp->b_flag & BFREADONLY) {
+		dobeep();
+		ewprintf("Buffer is read only");
+		return (FALSE);
+	}
+
+	lchange(WFEDIT);
+	lp1 = curwp->w_dotp;
+
+	if (lp1 == curbp->b_headp) {
+		struct line *lp2, *lp3;
+		if (curwp->w_doto != 0) {
+			dobeep();
+			ewprintf("bug: linsert_buf");
+			return (FALSE);
+		}
+		if ((lp2 = lalloc(len)) == NULL)
+			return (FALSE);
+		lp3 = lp1->l_bp;
+		lp3->l_fp = lp2;
+		lp2->l_fp = lp1;
+		lp1->l_bp = lp2;
+		lp2->l_bp = lp3;
+		memcpy(lp2->l_text, buf, len);
+		for (wp = wheadp; wp != NULL; wp = wp->w_wndp) {
+			if (wp->w_linep == lp1)
+				wp->w_linep = lp2;
+			if (wp->w_dotp == lp1)
+				wp->w_dotp = lp2;
+			if (wp->w_markp == lp1)
+				wp->w_markp = lp2;
+		}
+		undo_add_insert(lp2, 0, len);
+		curwp->w_doto = len;
+		return (TRUE);
+	}
+
+	doto = curwp->w_doto;
+	if (lp1->l_used + len > lp1->l_size) {
+		if (lrealloc(lp1, lp1->l_used + len) == FALSE)
+			return (FALSE);
+	}
+	lp1->l_used += len;
+	memmove(&lp1->l_text[doto + len], &lp1->l_text[doto],
+	    lp1->l_used - len - doto);
+	memcpy(&lp1->l_text[doto], buf, len);
+	for (wp = wheadp; wp != NULL; wp = wp->w_wndp) {
+		if (wp->w_dotp == lp1) {
+			if (wp == curwp || wp->w_doto > doto)
+				wp->w_doto += len;
+		}
+		if (wp->w_markp == lp1) {
+			if (wp->w_marko > doto)
+				wp->w_marko += len;
+		}
+	}
+	undo_add_insert(curwp->w_dotp, doto, len);
 	return (TRUE);
 }
 

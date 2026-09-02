@@ -15,6 +15,7 @@
 #include <stdio.h>
 
 #include "def.h"
+#include "utf8.h"
 
 int	doindent(int);
 
@@ -110,16 +111,31 @@ getcolpos(struct mgwin *wp)
 	/* determine column */
 	col = 0;
 
-	for (i = 0; i < wp->w_doto; ++i) {
+	for (i = 0; i < wp->w_doto; ) {
 		c = lgetc(wp->w_dotp, i);
 		if (c == '\t') {
 			col = ntabstop(col, wp->w_bufp->b_tabw);
-		} else if (ISCTRL(c) != FALSE)
+			i++;
+		} else if ((unsigned char)c >= 0x80) {
+			int len, w;
+			w = utf8_width(&wp->w_dotp->l_text[i],
+			    llength(wp->w_dotp) - i, &len);
+			if (w < 0) {
+				col += 4;
+				i++;
+			} else {
+				col += w;
+				i += len;
+			}
+		} else if (ISCTRL(c) != FALSE) {
 			col += 2;
-		else if (isprint(c)) {
+			i++;
+		} else if (isprint(c)) {
 			col++;
+			i++;
 		} else {
 			col += snprintf(tmp, sizeof(tmp), "\\%o", c);
+			i++;
 		}
 
 	}
@@ -441,6 +457,8 @@ indent(int f, int n)
 int
 forwdel(int f, int n)
 {
+	int s, i, blen;
+
 	if (n < 0)
 		return (backdel(f | FFRAND, -n));
 
@@ -451,7 +469,21 @@ forwdel(int f, int n)
 		thisflag |= CFKILL;
 	}
 
-	return (ldelete((RSIZE) n, (f & FFARG) ? KFORW : KNONE));
+	for (i = 0; i < n; i++) {
+		if (curwp->w_doto == llength(curwp->w_dotp))
+			blen = 1;		/* newline */
+		else {
+			int c = (unsigned char)lgetc(curwp->w_dotp,
+			    curwp->w_doto);
+			blen = utf8_seqlen(c);
+			if (blen <= 0)
+				blen = 1;
+		}
+		if ((s = ldelete((RSIZE)blen,
+		    (f & FFARG) ? KFORW : KNONE)) != TRUE)
+			return (s);
+	}
+	return (TRUE);
 }
 
 /*
@@ -462,7 +494,7 @@ forwdel(int f, int n)
 int
 backdel(int f, int n)
 {
-	int	s;
+	int	s, i, olddoto;
 
 	if (n < 0)
 		return (forwdel(f | FFRAND, -n));
@@ -473,10 +505,26 @@ backdel(int f, int n)
 			kdelete();
 		thisflag |= CFKILL;
 	}
-	if ((s = backchar(f | FFRAND, n)) == TRUE)
-		s = ldelete((RSIZE)n, (f & FFARG) ? KFORW : KNONE);
-
-	return (s);
+	for (i = 0; i < n; i++) {
+		olddoto = curwp->w_doto;
+		if ((s = backchar(f | FFRAND, 1)) != TRUE)
+			return (s);
+		/*
+		 * If we crossed a line boundary (olddoto was 0 and
+		 * backchar moved us to the end of the previous line),
+		 * olddoto - w_doto is negative.  Delete 1 (the newline)
+		 * instead of the nonsensical negative count.
+		 */
+		if (olddoto > curwp->w_doto)
+			s = ldelete((RSIZE)(olddoto - curwp->w_doto),
+			    (f & FFARG) ? KFORW : KNONE);
+		else
+			s = ldelete((RSIZE)1,
+			    (f & FFARG) ? KFORW : KNONE);
+		if (s != TRUE)
+			return (s);
+	}
+	return (TRUE);
 }
 
 int

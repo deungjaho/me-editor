@@ -10,7 +10,7 @@
 #include <sys/queue.h>
 #include <signal.h>
 #include <stdio.h>
-#include "terminfo_term.h"
+#include <term.h>
 #include <termios.h>
 
 #include "def.h"

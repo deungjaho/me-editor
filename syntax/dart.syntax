@@ -1,0 +1,106 @@
+# Dart syntax definition for me
+
+# Keywords
+keyword: abstract
+keyword: as
+keyword: assert
+keyword: async
+keyword: await
+keyword: class
+keyword: const
+keyword: covariant
+keyword: deferred
+keyword: dynamic
+keyword: enum
+keyword: export
+keyword: extends
+keyword: extension
+keyword: external
+keyword: factory
+keyword: final
+keyword: get
+keyword: hide
+keyword: implements
+keyword: import
+keyword: interface
+keyword: late
+keyword: library
+keyword: mixin
+keyword: on
+keyword: operator
+keyword: part
+keyword: required
+keyword: set
+keyword: show
+keyword: static
+keyword: super
+keyword: this
+keyword: typedef
+keyword: var
+keyword: void
+keyword: yield
+
+# Control flow
+control: break
+control: case
+control: continue
+control: default
+control: do
+control: else
+control: for
+control: if
+control: in
+control: return
+control: switch
+control: while
+control: throw
+control: try
+control: catch
+control: finally
+control: rethrow
+
+# Types
+type: bool
+type: double
+type: int
+type: num
+type: String
+type: List
+type: Map
+type: Set
+type: Runes
+type: Symbol
+type: Object
+type: Future
+type: Stream
+type: Iterable
+type: Iterator
+type: Comparable
+type: Pattern
+type: Match
+type: RegExp
+type: Duration
+type: DateTime
+type: Stopwatch
+type: BigInt
+type: Error
+type: Exception
+type: TypeError
+type: ArgumentError
+type: RangeError
+type: StateError
+type: FormatException
+type: Null
+type: Never
+type: print
+type: main
+
+# Strings
+string: " "
+string: ' '
+string: """ """
+string: ''' '''
+
+# Comments
+line_comment: //
+block_comment: /* */

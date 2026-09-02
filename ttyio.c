@@ -21,7 +21,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "terminfo_term.h"
+#include <term.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -129,6 +129,16 @@ ttputc(int c)
 		ttflush();
 	obuf[nobuf++] = c;
 	return (c);
+}
+
+/*
+ * Write a string to the display buffer.
+ */
+void
+ttputs(const char *s)
+{
+	while (*s)
+		ttputc((unsigned char)*s++);
 }
 
 /*

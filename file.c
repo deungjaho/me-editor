@@ -17,6 +17,7 @@
 #include <unistd.h>
 
 #include "def.h"
+#include "syntax.h"
 
 size_t xdirname(char *, const char *, size_t);
 
@@ -218,6 +219,7 @@ readin(char *fname)
 			wp->w_doto = 0;
 			wp->w_markp = NULL;
 			wp->w_marko = 0;
+			wp->w_rflag |= WFFULL;
 		}
 	}
 
@@ -261,6 +263,9 @@ readin(char *fname)
 	}
 	if (ro == TRUE)
 		curbp->b_flag |= BFREADONLY;
+
+	/* auto-detect syntax highlighting */
+	curbp->b_syntax = syntax_detect(fname);
 
 	if (startrow) {
 		gotoline(FFARG, startrow);

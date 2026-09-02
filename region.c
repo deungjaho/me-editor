@@ -57,6 +57,7 @@ killregion(int f, int n)
 	curwp->w_dotline = region.r_lineno;
 	s = ldelete(region.r_size, KFORW | KREG);
 	clearmark(FFARG, 0);
+	kpush_clipboard();
 
 	return (s);
 }
@@ -101,6 +102,7 @@ copyregion(int f, int n)
 		}
 	}
 	clearmark(FFARG, 0);
+	kpush_clipboard();
 
 	return (TRUE);
 }

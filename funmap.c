@@ -213,6 +213,7 @@ static struct funmap functnames[] = {
 	{shrinkwind, "shrink-window", 1},
 	{space_to_tabstop, "space-to-tabstop", 0},
 	{splitwind, "split-window-vertically", 0},
+	{splitwind_h, "split-window-horizontally", 0},
 	{definemacro, "start-kbd-macro", 0},
 	{spawncli, "suspend-emacs", 0},
 	{usebuffer, "switch-to-buffer", 1},
@@ -238,6 +239,10 @@ static struct funmap functnames[] = {
 	{showcpos, "what-cursor-position", 0},
 	{filewrite, "write-file", 1},
 	{yank, "yank", 1},
+	{syntax_on, "syntax-on", 0},
+	{syntax_off, "syntax-off", 0},
+	{syntax_mode, "syntax-mode", 1},
+	{syntax_reload, "syntax-reload", 0},
 	{NULL, NULL, 0}
 };
 

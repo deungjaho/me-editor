@@ -1,0 +1,102 @@
+# JavaScript syntax definition for me
+
+# Keywords
+keyword: async
+keyword: await
+keyword: class
+keyword: const
+keyword: debugger
+keyword: delete
+keyword: export
+keyword: extends
+keyword: from
+keyword: function
+keyword: get
+keyword: import
+keyword: in
+keyword: instanceof
+keyword: let
+keyword: new
+keyword: of
+keyword: set
+keyword: static
+keyword: super
+keyword: this
+keyword: typeof
+keyword: var
+keyword: void
+keyword: yield
+
+# Control flow
+control: break
+control: case
+control: catch
+control: continue
+control: default
+control: do
+control: else
+control: finally
+control: for
+control: if
+control: return
+control: switch
+control: throw
+control: try
+control: while
+
+# Types / builtins
+type: Array
+type: Boolean
+type: Date
+type: Error
+type: Function
+type: Infinity
+type: JSON
+type: Map
+type: Math
+type: NaN
+type: Number
+type: Object
+type: Promise
+type: Proxy
+type: Reflect
+type: RegExp
+type: Set
+type: String
+type: Symbol
+type: TypeError
+type: WeakMap
+type: WeakSet
+type: ArrayBuffer
+type: DataView
+type: Float32Array
+type: Float64Array
+type: Int8Array
+type: Int16Array
+type: Int32Array
+type: Uint8Array
+type: Uint16Array
+type: Uint32Array
+type: BigInt
+type: BigInt64Array
+type: BigUint64Array
+type: console
+type: document
+type: window
+type: global
+type: globalThis
+type: process
+type: Buffer
+type: module
+type: exports
+type: require
+type: undefined
+
+# Strings
+string: " "
+string: ' '
+string: ` `
+
+# Comments
+line_comment: //
+block_comment: /* */

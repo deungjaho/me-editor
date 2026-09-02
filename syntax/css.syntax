@@ -1,0 +1,101 @@
+# CSS syntax definition for me
+# Property names (word followed by ':') are auto-detected (flags: css_props).
+# At-rules and keywords are defined here.
+
+flags: css_props
+
+# At-rules (rose/magenta)
+control: @media
+control: @keyframes
+control: @import
+control: @font-face
+control: @supports
+control: @charset
+control: @page
+control: @namespace
+control: @document
+control: @viewport
+control: @counter-style
+control: @font-feature-values
+control: @property
+control: @layer
+control: @container
+control: @scope
+control: @starting-style
+
+# Keywords
+keyword: important
+keyword: inherit
+keyword: initial
+keyword: unset
+keyword: revert
+keyword: currentColor
+keyword: transparent
+keyword: auto
+keyword: none
+keyword: all
+keyword: and
+keyword: not
+keyword: only
+keyword: or
+keyword: from
+keyword: to
+
+# Common values (as types for visual distinction)
+type: absolute
+type: relative
+type: fixed
+type: sticky
+type: block
+type: inline
+type: flex
+type: grid
+type: inline-block
+type: inline-flex
+type: inline-grid
+type: table
+type: row
+type: column
+type: wrap
+type: nowrap
+type: center
+type: left
+type: right
+type: top
+type: bottom
+type: middle
+type: baseline
+type: stretch
+type: hidden
+type: visible
+type: scroll
+type: solid
+type: dotted
+type: dashed
+type: double
+type: groove
+type: ridge
+type: inset
+type: outset
+type: bold
+type: normal
+type: italic
+type: underline
+type: overline
+type: line-through
+type: uppercase
+type: lowercase
+type: capitalize
+type: serif
+type: sans-serif
+type: monospace
+type: cursive
+type: fantasy
+type: system-ui
+
+# Strings
+string: " "
+string: ' '
+
+# Comments
+block_comment: /* */

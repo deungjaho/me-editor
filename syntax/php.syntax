@@ -1,0 +1,123 @@
+# PHP syntax definition for me
+
+flags: dollar_vars
+
+# Keywords
+keyword: abstract
+keyword: as
+keyword: callable
+keyword: class
+keyword: clone
+keyword: const
+keyword: declare
+keyword: echo
+keyword: empty
+keyword: enddeclare
+keyword: endfor
+keyword: endforeach
+keyword: endif
+keyword: endswitch
+keyword: endwhile
+keyword: enum
+keyword: extends
+keyword: final
+keyword: fn
+keyword: function
+keyword: global
+keyword: implements
+keyword: include
+keyword: include_once
+keyword: instanceof
+keyword: insteadof
+keyword: interface
+keyword: isset
+keyword: list
+keyword: match
+keyword: namespace
+keyword: new
+keyword: print
+keyword: private
+keyword: protected
+keyword: public
+keyword: readonly
+keyword: require
+keyword: require_once
+keyword: static
+keyword: trait
+keyword: unset
+keyword: use
+keyword: var
+keyword: yield
+
+# Control flow
+control: break
+control: case
+control: continue
+control: default
+control: do
+control: else
+control: elseif
+control: for
+control: foreach
+control: goto
+control: if
+control: return
+control: switch
+control: throw
+control: try
+control: catch
+control: finally
+control: while
+
+# Types
+type: array
+type: bool
+type: boolean
+type: float
+type: double
+type: int
+type: integer
+type: string
+type: object
+type: mixed
+type: void
+type: null
+type: iterable
+type: self
+type: parent
+type: $this
+type: stdClass
+type: Exception
+type: Error
+type: RuntimeException
+type: TypeError
+type: ValueError
+type: DateTime
+type: DateTimeInterface
+type: DateInterval
+type: DatePeriod
+type: ArrayObject
+type: ArrayIterator
+type: SplStack
+type: SplQueue
+type: SplDoublyLinkedList
+type: SplObjectStorage
+type: SplFixedArray
+type: Countable
+type: Iterator
+type: IteratorAggregate
+type: ArrayAccess
+type: Serializable
+type: Stringable
+type: UnitEnum
+type: BackedEnum
+
+# Strings
+string: " "
+string: ' '
+string: ` `
+
+# Comments
+line_comment: //
+line_comment: #
+block_comment: /* */

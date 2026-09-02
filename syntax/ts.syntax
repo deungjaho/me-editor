@@ -1,0 +1,113 @@
+# TypeScript syntax definition for me
+
+# Keywords (JS + TS specific)
+keyword: abstract
+keyword: as
+keyword: async
+keyword: await
+keyword: class
+keyword: const
+keyword: declare
+keyword: delete
+keyword: enum
+keyword: export
+keyword: extends
+keyword: from
+keyword: function
+keyword: get
+keyword: import
+keyword: in
+keyword: instanceof
+keyword: interface
+keyword: let
+keyword: module
+keyword: namespace
+keyword: never
+keyword: new
+keyword: of
+keyword: private
+keyword: protected
+keyword: public
+keyword: readonly
+keyword: set
+keyword: static
+keyword: super
+keyword: this
+keyword: type
+keyword: typeof
+keyword: var
+keyword: void
+keyword: yield
+keyword: keyof
+keyword: infer
+keyword: is
+keyword: satisfies
+
+# Control flow
+control: break
+control: case
+control: catch
+control: continue
+control: default
+control: do
+control: else
+control: finally
+control: for
+control: if
+control: return
+control: switch
+control: throw
+control: try
+control: while
+
+# Types
+type: any
+type: boolean
+type: number
+type: string
+type: symbol
+type: bigint
+type: object
+type: undefined
+type: unknown
+type: Array
+type: Promise
+type: Date
+type: RegExp
+type: Error
+type: Map
+type: Set
+type: WeakMap
+type: WeakSet
+type: Record
+type: Partial
+type: Required
+type: Readonly
+type: Pick
+type: Omit
+type: Exclude
+type: Extract
+type: NonNullable
+type: Parameters
+type: ReturnType
+type: InstanceType
+type: ThisType
+type: Console
+type: Math
+type: JSON
+type: Symbol
+type: Number
+type: String
+type: Boolean
+type: BigInt
+type: Function
+type: Object
+
+# Strings
+string: " "
+string: ' '
+string: ` `
+
+# Comments
+line_comment: //
+block_comment: /* */

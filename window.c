@@ -29,6 +29,8 @@ new_window(struct buffer *bp)
 	wp->w_marko = 0;
 	wp->w_rflag = 0;
 	wp->w_frame = 0;
+	wp->w_leftcol = 0;
+	wp->w_ntcols = 0;
 	wp->w_wrapline = NULL;
 	wp->w_dotline = wp->w_markline = 1;
 	if (bp)
@@ -37,15 +39,38 @@ new_window(struct buffer *bp)
 }
 
 /*
- * Reposition dot in the current window to line "n".  If the argument is
- * positive, it is that line.  If it is negative it is that line from the
- * bottom.  If it is 0 the window is centered (this is what the standard
- * redisplay code does).
+ * Reposition dot in the current window.  With an argument, position
+ * to that line.  Without an argument, cycle through center → top →
+ * bottom, like GNU Emacs.
  */
 int
 reposition(int f, int n)
 {
-	curwp->w_frame = (f & FFARG) ? (n >= 0 ? n + 1 : n) : 0;
+	static int cycle = 0;	/* 0=center, 1=top, 2=bottom */
+
+	/* Reset cycle if the previous command was not reposition. */
+	if (!(lastflag & FFCPR))
+		cycle = 0;
+
+	if (f & FFARG) {
+		curwp->w_frame = (n >= 0 ? n + 1 : n);
+	} else {
+		switch (cycle) {
+		case 0:			/* center */
+			curwp->w_frame = 0;
+			cycle = 1;
+			break;
+		case 1:			/* top */
+			curwp->w_frame = 1;
+			cycle = 2;
+			break;
+		default:		/* bottom */
+			curwp->w_frame = -1;
+			cycle = 0;
+			break;
+		}
+	}
+	thisflag |= FFCPR;
 	curwp->w_rflag |= WFFRAME;
 	sgarbf = TRUE;
 	return (TRUE);
@@ -94,6 +119,11 @@ do_redraw(int f, int n, int force)
 			return (FALSE);
 		}
 		wp->w_ntrows = nrow - wp->w_toprow - 2;
+		/* update column widths for non-split windows */
+		for (wp = wheadp; wp != NULL; wp = wp->w_wndp) {
+			if (wp->w_leftcol == 0 && wp->w_ntcols == oldncol)
+				wp->w_ntcols = ncol;
+		}
 		sgarbf = TRUE;
 		update(CMODE);
 	} else
@@ -187,9 +217,11 @@ onlywind(int f, int n)
 		lp = lback(lp);
 	}
 	curwp->w_toprow = 0;
+	curwp->w_leftcol = 0;
 
 	/* 2 = mode, echo */
 	curwp->w_ntrows = nrow - 2;
+	curwp->w_ntcols = ncol;
 	curwp->w_linep = lp;
 	curwp->w_rflag |= WFMODE | WFFULL;
 	return (TRUE);
@@ -227,6 +259,9 @@ splitwind(int f, int n)
 	wp->w_marko = curwp->w_marko;
 	wp->w_dotline = curwp->w_dotline;
 	wp->w_markline = curwp->w_markline;
+	/* inherit column range */
+	wp->w_leftcol = curwp->w_leftcol;
+	wp->w_ntcols = curwp->w_ntcols;
 
 	/* figure out which half of the screen we're in */
 	ntru = (curwp->w_ntrows - 1) / 2;	/* Upper size */
@@ -281,6 +316,58 @@ splitwind(int f, int n)
 	/* if FFOTHARG, set flags) */
 	if (f & FFOTHARG)
 		wp->w_flag = n;
+
+	return (TRUE);
+}
+
+/*
+ * Split the current window into left and right halves.
+ * Bound to C-x 3 (split-window-horizontally in Emacs).
+ */
+int
+splitwind_h(int f, int n)
+{
+	struct mgwin	*wp;
+	int		 ncl, ncr;
+
+	if (curwp->w_ntcols < 20) {
+		dobeep();
+		ewprintf("Cannot split a %d column window", curwp->w_ntcols);
+		return (FALSE);
+	}
+	wp = new_window(curbp);
+	if (wp == NULL) {
+		dobeep();
+		ewprintf("Unable to create a window");
+		return (FALSE);
+	}
+
+	/* use the current dot and mark */
+	wp->w_dotp = curwp->w_dotp;
+	wp->w_doto = curwp->w_doto;
+	wp->w_markp = curwp->w_markp;
+	wp->w_marko = curwp->w_marko;
+	wp->w_dotline = curwp->w_dotline;
+	wp->w_markline = curwp->w_markline;
+
+	/* split columns: left gets half, right gets the rest */
+	ncl = curwp->w_ntcols / 2;
+	ncr = curwp->w_ntcols - ncl - 1;	/* -1 for the separator column */
+
+	/* right window */
+	wp->w_leftcol = curwp->w_leftcol + ncl + 1;
+	wp->w_ntcols = ncr;
+	wp->w_toprow = curwp->w_toprow;
+	wp->w_ntrows = curwp->w_ntrows;
+	wp->w_linep = curwp->w_linep;
+	wp->w_wndp = curwp->w_wndp;
+
+	/* left window (current) shrinks */
+	curwp->w_ntcols = ncl;
+	curwp->w_wndp = wp;
+
+	curwp->w_rflag |= WFMODE | WFFULL;
+	wp->w_rflag |= WFMODE | WFFULL;
 
 	return (TRUE);
 }
@@ -400,13 +487,36 @@ shrinkwind(int f, int n)
 int
 delwind(int f, int n)
 {
-	struct mgwin	*wp, *nwp;
+	struct mgwin	*wp, *nwp, *sib;
 
 	wp = curwp;		/* Cheap...		 */
 
-	/* shrinkwind returning false means only one window... */
-	if (shrinkwind(FFRAND, wp->w_ntrows + 1) == FALSE)
+	/* Only one window? */
+	if (wheadp->w_wndp == NULL) {
+		dobeep();
+		ewprintf("Only one window");
 		return (FALSE);
+	}
+
+	/* Find the sibling window (adjacent in the list) */
+	sib = wp->w_wndp;
+	if (sib == NULL) {
+		for (sib = wheadp; sib->w_wndp != wp; sib = sib->w_wndp)
+			;
+	}
+
+	/* Check if this is a horizontal split (same toprow) */
+	if (sib->w_toprow == wp->w_toprow) {
+		/* Horizontal split: expand sibling to full width */
+		sib->w_leftcol = 0;
+		sib->w_ntcols = ncol;
+		sib->w_rflag |= WFMODE | WFFULL;
+	} else {
+		/* Vertical split: use shrinkwind to transfer rows */
+		if (shrinkwind(FFRAND, wp->w_ntrows + 1) == FALSE)
+			return (FALSE);
+	}
+
 	if (--wp->w_bufp->b_nwnd == 0) {
 		wp->w_bufp->b_dotp = wp->w_dotp;
 		wp->w_bufp->b_doto = wp->w_doto;
@@ -416,7 +526,7 @@ delwind(int f, int n)
 		wp->w_bufp->b_markline = wp->w_markline;
 	}
 
-	/* since shrinkwind did't crap out, we know we have a second window */
+	/* Remove wp from the window list */
 	if (wp == wheadp)
 		wheadp = curwp = wp->w_wndp;
 	else if ((curwp = wp->w_wndp) == NULL)

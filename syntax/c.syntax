@@ -1,0 +1,83 @@
+# C syntax definition for mg
+# Place in ~/.mg/syntax/c.syntax
+
+# Preprocessor directives
+# Conditional compilation = control flow (rose/magenta)
+control: #if
+control: #ifdef
+control: #ifndef
+control: #elif
+control: #else
+control: #endif
+# Other directives = declarations (sand)
+keyword: #include
+keyword: #define
+keyword: #undef
+keyword: #pragma
+keyword: #error
+keyword: #warning
+keyword: #line
+
+# Keywords
+keyword: auto
+keyword: const
+keyword: enum
+keyword: extern
+keyword: inline
+keyword: register
+keyword: restrict
+keyword: sizeof
+keyword: static
+keyword: struct
+keyword: typedef
+keyword: union
+keyword: volatile
+keyword: _Bool
+keyword: _Complex
+keyword: _Imaginary
+
+# Control flow keywords (rose/magenta)
+control: break
+control: case
+control: continue
+control: default
+control: do
+control: else
+control: for
+control: goto
+control: if
+control: return
+control: switch
+control: while
+
+# Types
+type: char
+type: double
+type: float
+type: int
+type: long
+type: short
+type: signed
+type: unsigned
+type: void
+type: size_t
+type: ssize_t
+type: FILE
+type: ptrdiff_t
+type: wchar_t
+type: int8_t
+type: int16_t
+type: int32_t
+type: int64_t
+type: uint8_t
+type: uint16_t
+type: uint32_t
+type: uint64_t
+
+# Strings
+string: " "
+string: ' '
+
+# Comments
+line_comment: //
+block_comment: /* */

@@ -12,7 +12,7 @@
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "terminfo_term.h"
+#include <term.h>
 
 #include "def.h"
 #include "kbd.h"
@@ -57,6 +57,8 @@ ttykeymapinit(void)
 		dobindkey(fundamental_map, "overwrite-mode", key_ic);
 	if (key_dc)
 		dobindkey(fundamental_map, "delete-char", key_dc);
+	if (key_f1)
+		dobindkey(fundamental_map, "help-help", key_f1);
 
 	if ((cp = getenv("TERM")) != NULL &&
 	    (ffp = startupfile(cp, NULL, file, sizeof(file))) != NULL) {

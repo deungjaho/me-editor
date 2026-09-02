@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "def.h"
 
@@ -22,6 +23,54 @@ static RSIZE	 ksize = 0;	/* # of bytes allocated in KB.	 */
 static RSIZE	 kstart = 0;	/* # of first used byte in KB.	 */
 
 static int	 kgrow(int);
+
+/* ---- system clipboard sync (macOS pbcopy/pbpaste) ---- */
+
+/*
+ * Push the current kill buffer to the system clipboard via pbcopy.
+ * Called after copyregion/killregion so the system clipboard stays
+ * in sync with the editor's internal kill ring.
+ */
+void
+kpush_clipboard(void)
+{
+	FILE	*fp;
+	int	 i;
+
+	if (kbufp == NULL || kused <= kstart)
+		return;
+	fp = popen("pbcopy", "w");
+	if (fp == NULL)
+		return;
+	for (i = kstart; i < kused; i++)
+		fputc(kbufp[i], fp);
+	pclose(fp);
+}
+
+/*
+ * Pull text from the system clipboard via pbpaste and insert it
+ * at dot.  Used by yank when the internal kill buffer is empty,
+ * so that text copied outside the editor (e.g. Cmd-C in Terminal)
+ * can be pasted with C-y.
+ */
+int
+ypull_clipboard(void)
+{
+	FILE	*fp;
+	int	 c;
+
+	fp = popen("pbpaste", "r");
+	if (fp == NULL)
+		return (FALSE);
+	while ((c = fgetc(fp)) != EOF) {
+		if (c == '\n')
+			lnewline();
+		else
+			linsert(1, c);
+	}
+	pclose(fp);
+	return (TRUE);
+}
 
 /*
  * Delete all of the text saved in the kill buffer.  Called by commands when
@@ -227,6 +276,18 @@ yank(int f, int n)
 
 	if (n < 0)
 		return (FALSE);
+
+	/* If internal kill buffer is empty, try system clipboard. */
+	if (kbufp == NULL || kused <= kstart) {
+		undo_boundary_enable(FFRAND, 0);
+		isetmark();
+		if (ypull_clipboard() == FALSE) {
+			undo_boundary_enable(FFRAND, 1);
+			return (FALSE);
+		}
+		undo_boundary_enable(FFRAND, 1);
+		return (TRUE);
+	}
 
 	/* newline counting */
 	nline = 0;

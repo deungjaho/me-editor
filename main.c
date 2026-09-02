@@ -291,6 +291,8 @@ edinit(struct buffer *bp)
 	wp->w_wndp = NULL;			/* Initialize window.	 */
 	wp->w_linep = wp->w_dotp = bp->b_headp;
 	wp->w_ntrows = nrow - 2;		/* 2 = mode, echo.	 */
+	wp->w_leftcol = 0;
+	wp->w_ntcols = ncol;
 	wp->w_rflag = WFMODE | WFFULL;		/* Full.		 */
 }
 
@@ -343,5 +345,7 @@ quit(int f, int n)
 int
 ctrlg(int f, int n)
 {
+	if (curwp->w_markp != NULL)
+		(void)clearmark(FFARG, 0);
 	return (ABORT);
 }

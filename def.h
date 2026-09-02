@@ -2,6 +2,9 @@
 
 /* This file is in the public domain. */
 
+#ifndef DEF_H
+#define DEF_H
+
 /*
  * This file is the general header file for all parts
  * of the Mg display editor. It contains all of the
@@ -80,6 +83,7 @@ typedef int	(*PF)(int, int);	/* generally useful type */
 #define FFOTHARG	4	/* other argument		 */
 #define FFARG		7	/* any argument			 */
 #define FFRAND		8	/* Called by other function	 */
+#define FFCPR		16	/* Last command was reposition	 */
 
 /*
  * Flags for "eread".
@@ -109,6 +113,8 @@ typedef int	(*PF)(int, int);	/* generally useful type */
  */
 typedef int	RSIZE;		/* Type for file/region sizes    */
 typedef short	KCHAR;		/* Type for internal keystrokes  */
+
+struct syntax_table;		/* forward declaration (syntax.h) */
 
 /*
  * This structure holds the starting position
@@ -142,6 +148,7 @@ struct line {
 	int		 l_size;	/* Allocated size		 */
 	int		 l_used;	/* Used size			 */
 	char		*l_text;	/* Content of the line		 */
+	short		 l_synstate;	/* Syntax state at end of line	 */
 };
 
 /*
@@ -203,6 +210,8 @@ struct mgwin {
 	int		 w_marko;	/* Byte offset for "mark"	*/
 	int		 w_toprow;	/* Origin 0 top row of window	*/
 	int		 w_ntrows;	/* # of rows of text in window	*/
+	int		 w_leftcol;	/* Origin 0 left column of window */
+	int		 w_ntcols;	/* # of columns of text in window */
 	int		 w_frame;	/* #lines to reframe by.	*/
 	char		 w_rflag;	/* Redisplay Flags.		*/
 	char		 w_flag;	/* Flags.			*/
@@ -281,6 +290,7 @@ struct buffer {
 	int		 b_dotline;	/* Line number of dot */
 	int		 b_markline;	/* Line number of mark */
 	int		 b_lines;	/* Number of lines in file	*/
+	struct syntax_table *b_syntax;	/* Syntax table (NULL = none)	*/
 };
 #define b_bufp	b_list.l_p.x_bp
 #define b_bname b_list.l_name
@@ -297,6 +307,7 @@ struct buffer {
 #define BFDIRTY     0x20		/* Buffer was modified elsewhere */
 #define BFIGNDIRTY  0x40		/* Ignore modifications 	 */
 #define BFDIREDDEL  0x80		/* Dired has a deleted 'D' file	 */
+#define BFSYNOFF    0x100		/* Syntax highlighting off	 */
 /*
  * This structure holds information about recent actions for the Undo command.
  */
@@ -363,6 +374,7 @@ int		 ttraw(void);
 void		 ttclose(void);
 int		 ttcooked(void);
 int		 ttputc(int);
+void		 ttputs(const char *);
 void		 ttflush(void);
 int		 ttgetc(void);
 int		 ttwait(int);
@@ -405,6 +417,7 @@ int		 lrealloc(struct line *, int);
 void		 lfree(struct line *);
 void		 lchange(int);
 int		 linsert(int, int);
+int		 linsert_buf(const char *, int);
 int		 lnewline_at(struct line *, int);
 int		 lnewline(void);
 int		 ldelete(RSIZE, int);
@@ -419,6 +432,8 @@ void		 kdelete(void);
 int		 kinsert(int, int);
 int		 kremove(int);
 int		 kchunk(char *, RSIZE, int);
+void		 kpush_clipboard(void);
+int		 ypull_clipboard(void);
 int		 killline(int, int);
 int		 yank(int, int);
 
@@ -431,6 +446,7 @@ int		 nextwind(int, int);
 int		 prevwind(int, int);
 int		 onlywind(int, int);
 int		 splitwind(int, int);
+int		 splitwind_h(int, int);
 int		 enlargewind(int, int);
 int		 shrinkwind(int, int);
 int		 delwind(int, int);
@@ -783,8 +799,17 @@ extern int		 tcinsl;
 extern int		 tcdell;
 extern int		 rptcount;	/* successive invocation count */
 
+/* syntax.c */
+int		 syntax_on(int, int);
+int		 syntax_off(int, int);
+int		 syntax_mode(int, int);
+int		 syntax_reload(int, int);
+struct syntax_table *syntax_detect(const char *);
+
 /*
  * Extensions.
  */
 extern int		 shownlprompt;
 int			 togglenewlineprompt(int, int);
+
+#endif /* DEF_H */

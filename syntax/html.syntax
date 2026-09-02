@@ -1,0 +1,76 @@
+# HTML syntax definition for me
+# Tag names are auto-detected by the tokenizer (flags: tags).
+# This file provides attribute names and comment rules.
+
+flags: tags
+
+# Keywords / attribute names
+keyword: class
+keyword: id
+keyword: style
+keyword: href
+keyword: src
+keyword: alt
+keyword: title
+keyword: type
+keyword: name
+keyword: value
+keyword: placeholder
+keyword: required
+keyword: disabled
+keyword: readonly
+keyword: checked
+keyword: selected
+keyword: autofocus
+keyword: autocomplete
+keyword: target
+keyword: rel
+keyword: media
+keyword: sizes
+keyword: role
+keyword: aria-label
+keyword: aria-hidden
+keyword: aria-describedby
+keyword: aria-labelledby
+keyword: aria-expanded
+keyword: aria-controls
+keyword: lang
+keyword: dir
+keyword: charset
+keyword: content
+keyword: http-equiv
+keyword: viewport
+keyword: width
+keyword: height
+keyword: action
+keyword: method
+keyword: enctype
+keyword: for
+keyword: label
+keyword: max
+keyword: min
+keyword: maxlength
+keyword: minlength
+keyword: pattern
+keyword: step
+keyword: multiple
+keyword: accept
+keyword: cols
+keyword: rows
+keyword: wrap
+keyword: span
+keyword: colspan
+keyword: rowspan
+keyword: download
+keyword: draggable
+keyword: hidden
+keyword: tabindex
+keyword: defer
+keyword: async
+
+# Strings
+string: " "
+string: ' '
+
+# Comments
+block_comment: <!-- -->

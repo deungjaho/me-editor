@@ -14,6 +14,7 @@
 #include "kbd.h"
 #include "key.h"
 #include "macro.h"
+#include "utf8.h"
 
 #ifdef  MGLOG
 #include "log.h"
@@ -67,10 +68,8 @@ bsmap(int f, int n)
 void
 ungetkey(int c)
 {
-	if (use_metakey && pushed && c == CCHR('['))
-		pushedc |= METABIT;
-	else
-		pushedc = c;
+	/* Meta-key reassembly disabled for UTF-8 compatibility. */
+	pushedc = c;
 	pushed = TRUE;
 }
 
@@ -102,11 +101,12 @@ getkey(int flag)
 		else if (c == CCHR('?'))
 			c = CCHR('H');
 	}
-	if (use_metakey && (c & METABIT)) {
-		pushedc = c & ~METABIT;
-		pushed = TRUE;
-		c = CCHR('[');
-	}
+	/*
+	 * Meta-key translation (ESC + char) is incompatible with UTF-8:
+	 * bytes >= 0x80 are multi-byte sequence bytes, not meta keys.
+	 * Pass them through unchanged.  Meta keys remain available via
+	 * the ESC prefix (press ESC then the key).
+	 */
 	if (flag && promptp < &prompt[PROMPTL - 5]) {
 		promptp = getkeyname(promptp,
 		    sizeof(prompt) - (promptp - prompt) - 1, c);
@@ -332,6 +332,8 @@ selfinsert(int f, int n)
 	struct line	*lp;
 	int	 c;
 	int	 count;
+	char	 ubuf[UTF8_MAX_BYTES];
+	int	 ulen = 0, i, j;
 
 	if (n < 0)
 		return (FALSE);
@@ -339,34 +341,55 @@ selfinsert(int f, int n)
 		return (TRUE);
 	c = key.k_chars[key.k_count - 1];
 
+	/* Assemble full UTF-8 sequence if lead byte */
+	if ((unsigned char)c >= 0x80) {
+		int seqlen = utf8_seqlen((unsigned char)c);
+		if (seqlen > 1) {
+			ubuf[0] = c;
+			for (i = 1; i < seqlen; i++)
+				ubuf[i] = getkey(TRUE);
+			ulen = seqlen;
+		}
+	}
+
 	if (macrodef && macrocount < MAXMACRO) {
+		int total = ulen > 0 ? ulen * n : n;
 		if (f & FFARG)
 			macrocount -= 2;
 
 		/* last command was insert -- tack on the end */
 		if (lastflag & CFINS) {
 			macrocount--;
-			/* Ensure the line can handle the new characters */
-			if (maclcur->l_size < maclcur->l_used + n) {
-				if (lrealloc(maclcur, maclcur->l_used + n) ==
-				    FALSE)
+			if (maclcur->l_size < maclcur->l_used + total) {
+				if (lrealloc(maclcur, maclcur->l_used + total)
+				    == FALSE)
 					return (FALSE);
 			}
-			maclcur->l_used += n;
-			/* Copy in the new data */
-			for (count = maclcur->l_used - n;
-			    count < maclcur->l_used; count++)
-				maclcur->l_text[count] = c;
+			maclcur->l_used += total;
+			for (count = maclcur->l_used - total;
+			    count < maclcur->l_used; ) {
+				if (ulen > 0)
+					for (j = 0; j < ulen; j++)
+						maclcur->l_text[count++] =
+						    ubuf[j];
+				else
+					maclcur->l_text[count++] = c;
+			}
 		} else {
 			macro[macrocount - 1].m_funct = insert;
-			if ((lp = lalloc(n)) == NULL)
+			if ((lp = lalloc(total)) == NULL)
 				return (FALSE);
 			lp->l_bp = maclcur;
 			lp->l_fp = maclcur->l_fp;
 			maclcur->l_fp = lp;
 			maclcur = lp;
-			for (count = 0; count < n; count++)
-				lp->l_text[count] = c;
+			for (count = 0; count < total; ) {
+				if (ulen > 0)
+					for (j = 0; j < ulen; j++)
+						lp->l_text[count++] = ubuf[j];
+				else
+					lp->l_text[count++] = c;
+			}
 		}
 		thisflag |= CFINS;
 	}
@@ -377,13 +400,19 @@ selfinsert(int f, int n)
 		return (count);
 	}
 
-	/* overwrite mode */
-	if (curbp->b_flag & BFOVERWRITE) {
+	/* overwrite mode (byte-at-a-time; UTF-8 falls through to insert) */
+	if (ulen == 0 && (curbp->b_flag & BFOVERWRITE)) {
 		lchange(WFEDIT);
 		while (curwp->w_doto < llength(curwp->w_dotp) && n--)
 			lputc(curwp->w_dotp, curwp->w_doto++, c);
 		if (n <= 0)
 			return (TRUE);
+	}
+	if (ulen > 0) {
+		for (i = 0; i < n; i++)
+			if (linsert_buf(ubuf, ulen) != TRUE)
+				return (FALSE);
+		return (TRUE);
 	}
 	return (linsert(n, c));
 }

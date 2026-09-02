@@ -1,0 +1,125 @@
+# Vue syntax definition for me
+# Tag names are auto-detected (flags: tags).
+# This file covers Vue-specific APIs and JS/TS keywords.
+
+flags: tags
+
+# Vue Composition API
+keyword: ref
+keyword: reactive
+keyword: computed
+keyword: watch
+keyword: watchEffect
+keyword: watchPostEffect
+keyword: watchSyncEffect
+keyword: onMounted
+keyword: onUnmounted
+keyword: onBeforeMount
+keyword: onBeforeUnmount
+keyword: onUpdated
+keyword: onBeforeUpdate
+keyword: onActivated
+keyword: onDeactivated
+keyword: onErrorCaptured
+keyword: onRenderTracked
+keyword: onRenderTriggered
+keyword: onServerPrefetch
+keyword: provide
+keyword: inject
+keyword: shallowRef
+keyword: shallowReactive
+keyword: readonly
+keyword: shallowReadonly
+keyword: toRef
+keyword: toRefs
+keyword: toRaw
+keyword: markRaw
+keyword: unref
+keyword: isRef
+keyword: isReactive
+keyword: isReadonly
+keyword: isProxy
+keyword: nextTick
+keyword: useSlots
+keyword: useAttrs
+keyword: useCssModule
+keyword: useCssVars
+keyword: defineProps
+keyword: defineEmits
+keyword: defineExpose
+keyword: defineModel
+keyword: defineOptions
+keyword: defineSlots
+keyword: defineCustomElement
+keyword: withDefaults
+
+# JS/TS keywords
+keyword: async
+keyword: await
+keyword: class
+keyword: const
+keyword: export
+keyword: extends
+keyword: from
+keyword: function
+keyword: get
+keyword: import
+keyword: let
+keyword: new
+keyword: of
+keyword: set
+keyword: static
+keyword: super
+keyword: this
+keyword: typeof
+keyword: var
+keyword: void
+keyword: yield
+
+# Control flow
+control: break
+control: case
+control: catch
+control: continue
+control: default
+control: do
+control: else
+control: finally
+control: for
+control: if
+control: return
+control: switch
+control: throw
+control: try
+control: while
+
+# Types / builtins
+type: Array
+type: Boolean
+type: Date
+type: Error
+type: Function
+type: Number
+type: Object
+type: Promise
+type: RegExp
+type: String
+type: Symbol
+type: Map
+type: Set
+type: WeakMap
+type: WeakSet
+type: console
+type: JSON
+type: Math
+type: undefined
+
+# Strings
+string: " "
+string: ' '
+string: ` `
+
+# Comments
+line_comment: //
+block_comment: /* */
+block_comment: <!-- -->

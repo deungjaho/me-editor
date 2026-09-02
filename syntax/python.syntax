@@ -1,0 +1,93 @@
+# Python syntax definition for me
+
+flags: annotations
+
+# Keywords
+keyword: as
+keyword: assert
+keyword: async
+keyword: await
+keyword: class
+keyword: def
+keyword: del
+keyword: from
+keyword: global
+keyword: import
+keyword: in
+keyword: is
+keyword: lambda
+keyword: nonlocal
+keyword: not
+keyword: or
+keyword: pass
+keyword: with
+keyword: yield
+keyword: and
+
+# Control flow
+control: break
+control: continue
+control: elif
+control: else
+control: except
+control: finally
+control: for
+control: if
+control: match
+control: case
+control: return
+control: try
+control: while
+control: raise
+
+# Types / builtins
+type: self
+type: cls
+type: int
+type: str
+type: float
+type: bool
+type: list
+type: dict
+type: tuple
+type: set
+type: bytes
+type: object
+type: type
+type: frozenset
+type: complex
+type: bytearray
+type: range
+type: print
+type: len
+type: open
+type: input
+type: map
+type: filter
+type: zip
+type: enumerate
+type: sorted
+type: reversed
+type: sum
+type: min
+type: max
+type: abs
+type: round
+type: pow
+type: divmod
+type: isinstance
+type: issubclass
+type: hasattr
+type: getattr
+type: setattr
+type: delattr
+type: super
+
+# Strings
+string: " "
+string: ' '
+string: """ """
+string: ''' '''
+
+# Comments
+line_comment: #

@@ -20,6 +20,7 @@
 #include <stdlib.h>
 
 #include "def.h"
+#include "utf8.h"
 
 #define percint(n1, n2)		((n1 * (int) n2) * 0.1)
 
@@ -61,8 +62,16 @@ backchar(int f, int n)
 			curwp->w_doto = llength(lp);
 			curwp->w_rflag |= WFMOVE;
 			curwp->w_dotline--;
-		} else
-			curwp->w_doto--;
+		} else {
+			/* skip back to start of UTF-8 sequence */
+			int o = curwp->w_doto - 1;
+			while (o > 0 &&
+			    (unsigned char)lgetc(curwp->w_dotp, o) >= 0x80 &&
+			    (unsigned char)lgetc(curwp->w_dotp, o) < 0xC0)
+				o--;
+			curwp->w_doto = o;
+			curwp->w_rflag |= WFMOVE;
+		}
 	}
 	return (TRUE);
 }
@@ -103,8 +112,14 @@ forwchar(int f, int n)
 			curwp->w_doto = 0;
 			curwp->w_dotline++;
 			curwp->w_rflag |= WFMOVE;
-		} else
-			curwp->w_doto++;
+		} else {
+			/* advance by UTF-8 sequence length */
+			int c = (unsigned char)lgetc(curwp->w_dotp,
+			    curwp->w_doto);
+			int n = utf8_seqlen(c);
+			curwp->w_doto += (n > 0) ? n : 1;
+			curwp->w_rflag |= WFMOVE;
+		}
 	}
 	return (TRUE);
 }
@@ -274,16 +289,31 @@ getgoal(struct line *dlp)
 	int c, i, col = 0;
 	char tmp[5];
 
-	for (i = 0; i < llength(dlp); i++) {
+	for (i = 0; i < llength(dlp); ) {
 		c = lgetc(dlp, i);
 		if (c == '\t') {
 			col = ntabstop(col, curbp->b_tabw);
+			i++;
+		} else if ((unsigned char)c >= 0x80) {
+			int len, w;
+			w = utf8_width(&dlp->l_text[i],
+			    llength(dlp) - i, &len);
+			if (w < 0) {
+				col += 4;
+				i++;
+			} else {
+				col += w;
+				i += len;
+			}
 		} else if (ISCTRL(c) != FALSE) {
 			col += 2;
-		} else if (isprint(c))
+			i++;
+		} else if (isprint(c)) {
 			col++;
-		else {
+			i++;
+		} else {
 			col += snprintf(tmp, sizeof(tmp), "\\%o", c);
+			i++;
 		}
 		if (col > curgoal)
 			break;
@@ -450,6 +480,7 @@ int
 setmark(int f, int n)
 {
 	isetmark();
+	curwp->w_rflag |= WFFULL;
 	ewprintf("Mark set");
 	return (TRUE);
 }
@@ -464,6 +495,7 @@ clearmark(int f, int n)
 	curwp->w_markp = NULL;
 	curwp->w_marko = 0;
 	curwp->w_markline = 0;
+	curwp->w_rflag |= WFFULL;
 
 	return (TRUE);
 }

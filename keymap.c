@@ -131,11 +131,11 @@ static PF cXcB[] = {
 
 static PF cXcJ[] = {
 	dired_jump,		/* ^J */
-	rescan,			/* ^K */
+	killbuffer_cmd,		/* ^K — same as C-x k */
 	lowerregion,		/* ^L */
 	rescan,			/* ^M */
 	rescan,			/* ^N */
-	deblank,		/* ^O */
+	nextwind,		/* ^O — same as C-x o */
 	rescan,			/* ^P */
 	togglereadonly,		/* ^Q */
 	filevisitro,		/* ^R */
@@ -156,7 +156,7 @@ static PF cX0[] = {
 	delwind,		/* 0 */
 	onlywind,		/* 1 */
 	splitwind,		/* 2 */
-	rescan,			/* 3 */
+	splitwind_h,		/* 3 */
 	NULL			/* 4 */
 };
 
@@ -226,7 +226,7 @@ static PF metacV[] = {
 };
 
 static PF metaspex[] = {
-	justone,		/* space */
+	setmark,		/* space — M-space sets mark */
 	shellcommand		/* ! */
 };
 
@@ -349,7 +349,7 @@ struct KEYMAPE (8) metamap = {
 };
 
 static PF fund_at[] = {
-	setmark,		/* ^@ */
+	setmark,		/* ^@ — set mark (same as M-space) */
 	gotobol,		/* ^A */
 	backchar,		/* ^B */
 	NULL,			/* ^C */
@@ -360,7 +360,7 @@ static PF fund_at[] = {
 };
 
 static PF fund_h[] = {
-	NULL,			/* ^H */
+	backdel,		/* ^H — delete backward (UTF-8 aware) */
 };
 
 
@@ -410,7 +410,7 @@ static struct KEYMAPE (8) fundmap = {
 			CCHR('@'), CCHR('G'), fund_at, (KEYMAP *) & ccmap
 		},
 		{
-			CCHR('H'), CCHR('H'), fund_h, (KEYMAP *) & helpmap
+			CCHR('H'), CCHR('H'), fund_h, NULL
 		},
 		{
 			CCHR('J'), CCHR('Z'), fund_CJ, (KEYMAP *) & cXmap

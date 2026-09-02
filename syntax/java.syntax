@@ -1,0 +1,106 @@
+# Java syntax definition for me
+# @Annotations are auto-detected (flags: annotations).
+
+flags: annotations
+
+# Keywords
+keyword: abstract
+keyword: class
+keyword: extends
+keyword: final
+keyword: implements
+keyword: import
+keyword: instanceof
+keyword: interface
+keyword: native
+keyword: package
+keyword: private
+keyword: protected
+keyword: public
+keyword: record
+keyword: sealed
+keyword: permits
+keyword: static
+keyword: strictfp
+keyword: synchronized
+keyword: transient
+keyword: volatile
+keyword: @interface
+
+# Control flow
+control: break
+control: case
+control: catch
+control: continue
+control: default
+control: do
+control: else
+control: finally
+control: for
+control: goto
+control: if
+control: return
+control: switch
+control: throw
+control: try
+control: while
+control: yield
+
+# Types
+type: boolean
+type: byte
+type: char
+type: double
+type: float
+type: int
+type: long
+type: short
+type: void
+type: var
+type: String
+type: Integer
+type: Long
+type: Double
+type: Float
+type: Boolean
+type: Character
+type: Byte
+type: Short
+type: Object
+type: Void
+type: Number
+type: Math
+type: System
+type: Exception
+type: RuntimeException
+type: Error
+type: Throwable
+type: StringBuilder
+type: StringBuffer
+type: ArrayList
+type: HashMap
+type: HashSet
+type: LinkedList
+type: TreeMap
+type: TreeSet
+type: Vector
+type: Stack
+type: Queue
+type: Deque
+type: List
+type: Map
+type: Set
+type: Collection
+type: Iterator
+type: Iterable
+type: Comparable
+type: Comparator
+type: Optional
+
+# Strings
+string: " "
+string: ' '
+
+# Comments
+line_comment: //
+block_comment: /* */

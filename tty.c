@@ -33,10 +33,11 @@
 #include <sys/time.h>
 #include <signal.h>
 #include <stdio.h>
-#include "terminfo_term.h"
+#include <term.h>
 #include <unistd.h>
 
 #include "def.h"
+#include "syntax.h"
 
 static int	 charcost(const char *);
 
@@ -393,19 +394,83 @@ ttnowindow(void)
  * in putline.s on a line by line basis, so don't bother sending out the
  * color shift.
  */
+/*
+ * Truecolor RGB table for syntax highlighting.
+ * Index by SCOLOR_* values from syntax.h.
+ * Format: {R, G, B}.
+ */
+static const struct { int r, g, b; } rgb_table[] = {
+    [SCOLOR_DEFAULT]  = { 189, 184, 158 },  /* #BDB89E sand (default) */
+    [SCOLOR_KEYWORD]  = { 189, 184, 158 },  /* #BDB89E sand           */
+    [SCOLOR_TYPE]     = { 189, 184, 158 },  /* #BDB89E sand           */
+    [SCOLOR_STRING]   = { 158, 237, 225 },  /* #9EEDE1 cyan/aqua      */
+    [SCOLOR_COMMENT]  = { 117, 206, 118 },  /* #75CE76 lime green     */
+    [SCOLOR_NUMBER]   = { 158, 237, 225 },  /* #9EEDE1 cyan (same as string) */
+    [SCOLOR_PREPROC]  = { 189, 184, 158 },  /* #BDB89E sand           */
+    [SCOLOR_CONTROL]  = { 255, 107, 157 },  /* #FF6B9D rose/magenta   */
+};
+#define RGB_TABLE_SIZE (int)(sizeof(rgb_table)/sizeof(rgb_table[0]))
+
+static void
+tttruecolor(int idx)
+{
+    char buf[32];
+    int r, g, b;
+    if (idx < 0 || idx >= RGB_TABLE_SIZE)
+        return;
+    r = rgb_table[idx].r;
+    g = rgb_table[idx].g;
+    b = rgb_table[idx].b;
+    /* \x1b[38;2;R;G;Bm — set foreground truecolor */
+    snprintf(buf, sizeof(buf), "\x1b[38;2;%d;%d;%dm", r, g, b);
+    ttputs(buf);
+}
+
 void
 ttcolor(int color)
 {
-	if (color != tthue) {
-		if (color == CTEXT)
-			/* normal video */
-			putpad(exit_standout_mode, 1);
-		else if (color == CMODE)
-			/* reverse video */
-			putpad(enter_standout_mode, 1);
-		/* save the color */
-		tthue = color;
-	}
+    int in_region = HUE_IN_REGION(color);
+    int base = HUE_BASE(color);
+
+    /* Build a composite key so that (sand+region) != (sand) etc. */
+    if (in_region)
+        color = base | 0x80;  /* distinguish from non-region */
+
+    if (color == tthue)
+        return;
+
+    if (in_region) {
+        /* region: soft dark background + original foreground color */
+        putpad(exit_standout_mode, 1);
+        ttputs("\x1b[48;2;92;92;138m");  /* bg #5C5C8A soft blue-gray */
+        if (base >= SCOLOR_DEFAULT && base < SCOLOR_MAX)
+            tttruecolor(base);
+        else
+            tttruecolor(SCOLOR_DEFAULT);
+        tthue = color;
+        return;
+    }
+
+    if (base == CTEXT) {
+        /* normal text: reset standout + background, set default fg */
+        putpad(exit_standout_mode, 1);
+        ttputs("\x1b[49m");             /* default background */
+        tttruecolor(SCOLOR_DEFAULT);
+    } else if (base == CMODE) {
+        /* mode line: sand/wheat background + dark green foreground */
+        putpad(exit_standout_mode, 1);
+        ttputs("\x1b[48;2;189;184;158m");  /* bg #BDB89E */
+        ttputs("\x1b[38;2;6;43;42m");       /* fg #062B2A */
+    } else if (base >= SCOLOR_DEFAULT && base < SCOLOR_MAX) {
+        /* syntax color: truecolor foreground only */
+        putpad(exit_standout_mode, 1);
+        ttputs("\x1b[49m");             /* default background */
+        tttruecolor(base);
+    } else {
+        putpad(exit_standout_mode, 1);
+        ttputs("\x1b[49m");             /* default background */
+    }
+    tthue = color;
 }
 
 /*

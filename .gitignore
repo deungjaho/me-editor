@@ -2,3 +2,6 @@
 *.o
 *~
 mg
+me
+config.h
+conftest.dSYM/
