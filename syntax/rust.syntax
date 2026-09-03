@@ -1,5 +1,7 @@
 # Rust syntax definition for me
 
+flags: lifetime
+
 # Keywords
 keyword: as
 keyword: async
@@ -121,3 +123,7 @@ string: ' '
 # Comments
 line_comment: //
 block_comment: /* */
+
+# Constants
+constant: true
+constant: false

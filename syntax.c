@@ -124,6 +124,200 @@ parse_delim(const char *spec, char **out_start, char **out_end)
         *out_end = strdup(buf);
 }
 
+/* ---- forward declarations of helpers ---- */
+static int is_word_start(unsigned char c);
+static int is_word_char(unsigned char c);
+static int is_word_char_ext(unsigned char c, int flags);
+static int is_word_start_ext(unsigned char c, int flags);
+static int match_at(const char *text, int pos, int textlen, const char *pat);
+static int find_delim(const char *text, int pos, int textlen, const char *delim);
+static int find_quote_end(const char *text, int pos, int textlen, char quote);
+
+/* ---- syntax rule matcher functions ---- */
+
+static int
+match_rule_string(struct syntax_table *st, const struct syn_rule *rule,
+                  const char *text, int pos, int textlen,
+                  int *match_len, int *color, int *state)
+{
+    (void)st;
+    if (!match_at(text, pos, textlen, rule->sr_start))
+        return 0;
+
+    int slen = strlen(rule->sr_start);
+    *color = rule->sr_color;
+
+    if (slen == 1) {
+        int end = find_quote_end(text, pos, textlen, rule->sr_start[0]);
+        *match_len = end - pos;
+        if (rule->sr_start[0] == '`' && pos + *match_len >= textlen &&
+            !(pos + *match_len > 0 && text[pos + *match_len - 1] == '`'))
+            *state = SYNSTATE_IN_BACKTICK;
+        return 1;
+    }
+
+    int end = find_delim(text, pos + slen, textlen, rule->sr_end);
+    if (end < 0) {
+        *match_len = textlen - pos;
+        if (strcmp(rule->sr_start, "\"\"\"") == 0)
+            *state = SYNSTATE_IN_TRIPLE_DQUOTE;
+        else
+            *state = SYNSTATE_IN_TRIPLE_SQUOTE;
+    } else {
+        *match_len = end - pos;
+    }
+    return 1;
+}
+
+static int
+match_rule_line_comment(struct syntax_table *st, const struct syn_rule *rule,
+                        const char *text, int pos, int textlen,
+                        int *match_len, int *color, int *state)
+{
+    (void)st;
+    (void)state;
+    if (!match_at(text, pos, textlen, rule->sr_start))
+        return 0;
+    *color = rule->sr_color;
+    *match_len = textlen - pos;
+    return 1;
+}
+
+static int
+match_rule_lifetime(struct syntax_table *st, const struct syn_rule *rule,
+                    const char *text, int pos, int textlen,
+                    int *match_len, int *color, int *state)
+{
+    (void)st;
+    (void)state;
+    if (text[pos] != '\'' || pos + 1 >= textlen ||
+        !is_word_start((unsigned char)text[pos + 1]))
+        return 0;
+
+    /* Single-quoted character literal check: 'X' or '\X' */
+    if (text[pos + 1] == '\\') {
+        int j = pos + 2;
+        while (j < textlen && text[j] != '\'')
+            j++;
+        if (j < textlen && text[j] == '\'')
+            return 0; /* character literal, let string rule handle it */
+    } else if (pos + 2 < textlen && text[pos + 2] == '\'') {
+        return 0; /* character literal, let string rule handle it */
+    }
+
+    int end = pos + 1;
+    while (end < textlen && is_word_char((unsigned char)text[end]))
+        end++;
+
+    /* If closing quote exists right after identifier (e.g. 'foo'), it's a string */
+    if (end < textlen && text[end] == '\'')
+        return 0;
+
+    *color = rule->sr_color;
+    *match_len = end - pos;
+    return 1;
+}
+
+static int
+match_rule_annotation(struct syntax_table *st, const struct syn_rule *rule,
+                      const char *text, int pos, int textlen,
+                      int *match_len, int *color, int *state)
+{
+    (void)st;
+    (void)state;
+    if (text[pos] != '@' || pos + 1 >= textlen ||
+        !is_word_start((unsigned char)text[pos + 1]))
+        return 0;
+
+    int end = pos + 1;
+    while (end < textlen && is_word_char((unsigned char)text[end]))
+        end++;
+
+    *color = rule->sr_color;
+    *match_len = end - pos;
+    return 1;
+}
+
+static int
+match_rule_tag(struct syntax_table *st, const struct syn_rule *rule,
+               const char *text, int pos, int textlen,
+               int *match_len, int *color, int *state)
+{
+    (void)st;
+    (void)state;
+    if (text[pos] != '<' || pos + 1 >= textlen ||
+        (!is_word_start((unsigned char)text[pos + 1]) && text[pos + 1] != '/'))
+        return 0;
+
+    int end = pos + 1;
+    if (text[end] == '/')
+        end++;
+
+    if (end >= textlen || !is_word_start((unsigned char)text[end]))
+        return 0;
+
+    while (end < textlen && is_word_char((unsigned char)text[end]))
+        end++;
+
+    while (end < textlen && text[end] == '-' && end + 1 < textlen &&
+           is_word_start((unsigned char)text[end + 1])) {
+        end++;
+        while (end < textlen && is_word_char((unsigned char)text[end]))
+            end++;
+    }
+
+    *color = rule->sr_color;
+    *match_len = end - pos;
+    return 1;
+}
+
+static int
+match_rule_char_lit(struct syntax_table *st, const struct syn_rule *rule,
+                    const char *text, int pos, int textlen,
+                    int *match_len, int *color, int *state)
+{
+    (void)st;
+    (void)state;
+    if (text[pos] != '?' || pos + 1 >= textlen)
+        return 0;
+
+    unsigned char nc = (unsigned char)text[pos + 1];
+    if (nc == ' ' || nc == '\t' || nc == ';')
+        return 0;
+
+    int end = pos + 2;
+    if (nc == '\\' && end < textlen)
+        end++;
+
+    *color = rule->sr_color;
+    *match_len = end - pos;
+    return 1;
+}
+
+static void
+syn_rule_add(struct syntax_table *st, int type, int color,
+             char *start, char *end, syn_rule_match_fn fn)
+{
+    struct syn_rule *r = calloc(1, sizeof(*r));
+    if (r == NULL)
+        return;
+    r->sr_type = type;
+    r->sr_color = color;
+    r->sr_start = start;
+    r->sr_end = end;
+    r->sr_match = fn;
+
+    /* Append to end of rule list to maintain declaration order */
+    if (st->st_rules == NULL) {
+        st->st_rules = r;
+    } else {
+        struct syn_rule *curr = st->st_rules;
+        while (curr->sr_next != NULL)
+            curr = curr->sr_next;
+        curr->sr_next = r;
+    }
+}
+
 struct syntax_table *
 syntax_load(const char *path)
 {
@@ -152,33 +346,27 @@ syntax_load(const char *path)
             kw_add(st, skip_ws(p + 5), SCOLOR_TYPE);
         } else if (strncmp(p, "control:", 8) == 0) {
             kw_add(st, skip_ws(p + 8), SCOLOR_CONTROL);
+        } else if (strncmp(p, "constant:", 9) == 0) {
+            kw_add(st, skip_ws(p + 9), SCOLOR_NUMBER);
         } else if (strncmp(p, "string:", 7) == 0) {
             char *s, *e;
             parse_delim(p + 7, &s, &e);
             if (s) {
-                struct syn_rule *r = calloc(1, sizeof(*r));
-                r->sr_type = SRULE_STRING;
-                r->sr_start = s;
-                r->sr_end = e ? e : strdup(s);
-                r->sr_next = st->st_rules;
-                st->st_rules = r;
+                syn_rule_add(st, SRULE_STRING, SCOLOR_STRING,
+                             s, e ? e : strdup(s), match_rule_string);
             }
         } else if (strncmp(p, "line_comment:", 13) == 0) {
             char *s, *e;
             parse_delim(p + 13, &s, &e);
             if (s) {
-                struct syn_rule *r = calloc(1, sizeof(*r));
-                r->sr_type = SRULE_LINE_COMMENT;
-                r->sr_start = s;
-                r->sr_next = st->st_rules;
-                st->st_rules = r;
+                syn_rule_add(st, SRULE_LINE_COMMENT, SCOLOR_COMMENT,
+                             s, NULL, match_rule_line_comment);
             }
             free(e);
         } else if (strncmp(p, "block_comment:", 14) == 0) {
             char *s, *e;
             parse_delim(p + 14, &s, &e);
             if (s && e) {
-                /* store as the table-level block comment */
                 st->st_block_start = s;
                 st->st_block_end = e;
             } else {
@@ -186,23 +374,30 @@ syntax_load(const char *path)
                 free(e);
             }
         } else if (strncmp(p, "number:", 7) == 0) {
-            /* numbers are auto-detected (0-9), this is a no-op for now */
+            /* numbers auto-detected */
         } else if (strncmp(p, "flags:", 6) == 0) {
             char *spec = skip_ws(p + 6);
             char *tok = strtok(spec, " \t");
             while (tok) {
-                if (strcmp(tok, "tags") == 0)
-                    st->st_flags |= SYNFLAG_TAGS;
-                else if (strcmp(tok, "annotations") == 0)
-                    st->st_flags |= SYNFLAG_ANNOTATIONS;
-                else if (strcmp(tok, "css_props") == 0)
-                    st->st_flags |= SYNFLAG_CSS_PROPS;
-                else if (strcmp(tok, "hyphen_words") == 0)
+                if (strcmp(tok, "tags") == 0) {
+                    syn_rule_add(st, SRULE_TAG, SCOLOR_CONTROL,
+                                 strdup("<"), NULL, match_rule_tag);
+                } else if (strcmp(tok, "annotations") == 0) {
+                    syn_rule_add(st, SRULE_ANNOTATION, SCOLOR_CONTROL,
+                                 strdup("@"), NULL, match_rule_annotation);
+                } else if (strcmp(tok, "lifetime") == 0) {
+                    syn_rule_add(st, SRULE_LIFETIME, SCOLOR_KEYWORD,
+                                 strdup("'"), NULL, match_rule_lifetime);
+                } else if (strcmp(tok, "char_lit") == 0) {
+                    syn_rule_add(st, SRULE_CHAR_LIT, SCOLOR_STRING,
+                                 strdup("?"), NULL, match_rule_char_lit);
+                } else if (strcmp(tok, "css_props") == 0) {
+                    st->st_flags |= SRULE_CSS_PROP;
+                } else if (strcmp(tok, "hyphen_words") == 0) {
                     st->st_flags |= SYNFLAG_HYPHEN_WORDS;
-                else if (strcmp(tok, "dollar_vars") == 0)
+                } else if (strcmp(tok, "dollar_vars") == 0) {
                     st->st_flags |= SYNFLAG_DOLLAR_VARS;
-                else if (strcmp(tok, "char_lit") == 0)
-                    st->st_flags |= SYNFLAG_CHAR_LIT;
+                }
                 tok = strtok(NULL, " \t");
             }
         }
@@ -477,157 +672,18 @@ syntax_match_line(struct line *prev, struct line *lp,
             continue;
         }
 
-        /* ---- line comment ---- */
+        /* ---- custom rules (strings, comments, tags, annotations, etc.) ---- */
         {
             struct syn_rule *r;
             int matched = 0;
             for (r = st->st_rules; r != NULL; r = r->sr_next) {
-                if (r->sr_type == SRULE_LINE_COMMENT &&
-                    match_at(text, i, textlen, r->sr_start)) {
-                    memset(hue + i, SCOLOR_COMMENT, textlen - i);
-                    i = textlen;
-                    matched = 1;
-                    break;
-                }
-            }
-            if (matched)
-                continue;
-        }
-
-        /* ---- annotation: @Word (only when SYNFLAG_ANNOTATIONS) ---- */
-        if ((st->st_flags & SYNFLAG_ANNOTATIONS) &&
-            c == '@' && i + 1 < textlen &&
-            is_word_start((unsigned char)text[i + 1])) {
-            int end = i + 1;
-            while (end < textlen && is_word_char((unsigned char)text[end]))
-                end++;
-            memset(hue + i, SCOLOR_CONTROL, end - i);
-            i = end;
-            continue;
-        }
-
-        /* ---- HTML/XML tag names: <tag  </tag (only SYNFLAG_TAGS) ----
-         * Like Vim: only highlight '<' + optional '/' + tag name.
-         * '>', '/>', attributes, and '=' keep default color. */
-        if ((st->st_flags & SYNFLAG_TAGS) &&
-            c == '<' && i + 1 < textlen &&
-            (is_word_start((unsigned char)text[i + 1]) || text[i + 1] == '/')) {
-            int start = i;
-            int end = i + 1;
-            /* skip optional '/' for closing tags */
-            if (text[end] == '/')
-                end++;
-            if (end < textlen && is_word_start((unsigned char)text[end])) {
-                while (end < textlen && is_word_char((unsigned char)text[end]))
-                    end++;
-                /* also handle hyphenated tags like <t-config-provider> */
-                while (end < textlen && text[end] == '-' &&
-                       end + 1 < textlen &&
-                       is_word_start((unsigned char)text[end + 1])) {
-                    end++;
-                    while (end < textlen && is_word_char((unsigned char)text[end]))
-                        end++;
-                }
-                /* highlight '<' + optional '/' + tag name */
-                memset(hue + start, SCOLOR_CONTROL, end - start);
-                i = end;
-                continue;
-            }
-            /* not a valid tag, fall through */
-        }
-
-        /* ---- Elisp character literal: ?a, ?\n, ?(  ---- */
-        if ((st->st_flags & SYNFLAG_CHAR_LIT) && c == '?' &&
-            i + 1 < textlen) {
-            unsigned char nc = (unsigned char)text[i + 1];
-            /* ? followed by whitespace or ; is not a char literal */
-            if (nc != ' ' && nc != '\t' && nc != ';') {
-                int end;
-                if (nc == '\\') {
-                    /* ?\X — include escape sequence */
-                    end = i + 2;
-                    /* consume one more char for \n, \t, \\, etc. */
-                    if (end < textlen)
-                        end++;
-                } else {
-                    /* ?X — single character */
-                    end = i + 2;
-                }
-                memset(hue + i, SCOLOR_STRING, end - i);
-                i = end;
-                continue;
-            }
-        }
-
-        /* ---- Rust lifetime / label: 'a, 'static (not a char literal) ---- */
-        if (c == '\'' && i + 1 < textlen &&
-            is_word_start((unsigned char)text[i + 1])) {
-            /* check if it's a char literal: 'X' or '\X' */
-            if (text[i + 1] == '\\') {
-                /* escape: find closing ' */
-                int j = i + 2;
-                while (j < textlen && text[j] != '\'')
-                    j++;
-                if (j < textlen && text[j] == '\'') {
-                    /* it's a char literal — let string matching handle it */
-                } else {
-                    /* no closing quote — treat as lifetime */
-                    int end = i + 1;
-                    while (end < textlen && is_word_char((unsigned char)text[end]))
-                        end++;
-                    memset(hue + i, SCOLOR_KEYWORD, end - i);
-                    i = end;
+                if (r->sr_match == NULL)
                     continue;
-                }
-            } else if (i + 2 < textlen && text[i + 2] == '\'') {
-                /* 'X' — char literal, let string matching handle it */
-            } else {
-                /* 'a or 'static — lifetime */
-                int end = i + 1;
-                while (end < textlen && is_word_char((unsigned char)text[end]))
-                    end++;
-                memset(hue + i, SCOLOR_KEYWORD, end - i);
-                i = end;
-                continue;
-            }
-        }
-
-        /* ---- string (from syntax rules: ", ', `, """, ''') ---- */
-        {
-            struct syn_rule *r;
-            int matched = 0;
-            for (r = st->st_rules; r != NULL; r = r->sr_next) {
-                if (r->sr_type != SRULE_STRING)
-                    continue;
-                if (match_at(text, i, textlen, r->sr_start)) {
-                    int slen = strlen(r->sr_start);
-                    if (slen == 1) {
-                        /* single-char: escape-aware search */
-                        int end = find_quote_end(text, i, textlen,
-                                                  r->sr_start[0]);
-                        memset(hue + i, SCOLOR_STRING, end - i);
-                        i = end;
-                        /* unclosed backtick → multi-line */
-                        if (r->sr_start[0] == '`' && i >= textlen &&
-                            !(i > 0 && text[i - 1] == '`'))
-                            state = SYNSTATE_IN_BACKTICK;
-                    } else {
-                        /* multi-char (triple-quote): search for end delim */
-                        int end = find_delim(text, i + slen, textlen,
-                                             r->sr_end);
-                        if (end < 0) {
-                            /* unclosed — spans to next line(s) */
-                            memset(hue + i, SCOLOR_STRING, textlen - i);
-                            if (strcmp(r->sr_start, "\"\"\"") == 0)
-                                state = SYNSTATE_IN_TRIPLE_DQUOTE;
-                            else
-                                state = SYNSTATE_IN_TRIPLE_SQUOTE;
-                            i = textlen;
-                            break;
-                        }
-                        memset(hue + i, SCOLOR_STRING, end - i);
-                        i = end;
-                    }
+                int match_len = 0;
+                int color = SCOLOR_DEFAULT;
+                if (r->sr_match(st, r, text, i, textlen, &match_len, &color, &state)) {
+                    memset(hue + i, color, match_len);
+                    i += match_len;
                     matched = 1;
                     break;
                 }
@@ -672,29 +728,13 @@ syntax_match_line(struct line *prev, struct line *lp,
             while (end < textlen && is_word_char_ext((unsigned char)text[end], st->st_flags))
                 end++;
             int wlen = end - i;
-            /* boolean/null constants → same color as numbers/strings */
-            if ((wlen == 4 && strncmp(text + i, "true", 4) == 0) ||
-                (wlen == 4 && strncmp(text + i, "True", 4) == 0) ||
-                (wlen == 4 && strncmp(text + i, "TRUE", 4) == 0) ||
-                (wlen == 5 && strncmp(text + i, "false", 5) == 0) ||
-                (wlen == 5 && strncmp(text + i, "False", 5) == 0) ||
-                (wlen == 5 && strncmp(text + i, "FALSE", 5) == 0) ||
-                (wlen == 4 && strncmp(text + i, "null", 4) == 0) ||
-                (wlen == 4 && strncmp(text + i, "Null", 4) == 0) ||
-                (wlen == 4 && strncmp(text + i, "NULL", 4) == 0) ||
-                (wlen == 4 && strncmp(text + i, "None", 4) == 0) ||
-                (wlen == 3 && strncmp(text + i, "nil", 3) == 0) ||
-                (wlen == 3 && strncmp(text + i, "Nil", 3) == 0) ||
-                (wlen == 3 && strncmp(text + i, "NIL", 3) == 0))
-                memset(hue + i, SCOLOR_NUMBER, wlen);
-            else {
-                int color = kw_lookup(st, text + i, wlen);
-                if (color != SCOLOR_DEFAULT)
-                    memset(hue + i, color, wlen);
-                /* CSS property name: word followed by ':' (only SYNFLAG_CSS_PROPS) */
-                else if ((st->st_flags & SYNFLAG_CSS_PROPS) &&
-                         end < textlen && text[end] == ':')
-                    memset(hue + i, SCOLOR_CONTROL, wlen);
+            int color = kw_lookup(st, text + i, wlen);
+            if (color != SCOLOR_DEFAULT) {
+                memset(hue + i, color, wlen);
+            } else if ((st->st_flags & SRULE_CSS_PROP) &&
+                       end < textlen && text[end] == ':') {
+                /* CSS property name: word followed by ':' */
+                memset(hue + i, SCOLOR_CONTROL, wlen);
             }
             i = end;
             continue;

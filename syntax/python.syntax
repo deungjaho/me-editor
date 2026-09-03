@@ -91,3 +91,8 @@ string: ''' '''
 
 # Comments
 line_comment: #
+
+# Constants
+constant: True
+constant: False
+constant: None

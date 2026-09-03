@@ -121,3 +121,10 @@ string: ` `
 line_comment: //
 line_comment: #
 block_comment: /* */
+
+# Constants
+constant: true
+constant: false
+constant: TRUE
+constant: FALSE
+constant: NULL

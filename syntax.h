@@ -52,32 +52,49 @@ enum {
     SRULE_KEYWORD,
     SRULE_TYPE,
     SRULE_CONTROL,
+    SRULE_CONSTANT,
     SRULE_STRING,
     SRULE_LINE_COMMENT,
     SRULE_BLOCK_COMMENT,
-    SRULE_NUMBER,
+    SRULE_LIFETIME,
+    SRULE_ANNOTATION,
+    SRULE_TAG,
+    SRULE_CHAR_LIT,
+    SRULE_CSS_PROP,
 };
 
-/* ---- syntax flags (language-specific tokenizer modes) ---- */
-#define SYNFLAG_TAGS        0x01    /* HTML/Vue: <tag> detection        */
-#define SYNFLAG_ANNOTATIONS 0x02    /* Java/Swift: @Annotation detection */
-#define SYNFLAG_CSS_PROPS   0x04    /* CSS: property: detection          */
-#define SYNFLAG_HYPHEN_WORDS 0x08   /* Elisp: - is a word char          */
-#define SYNFLAG_DOLLAR_VARS  0x10   /* Shell/PHP: $ is a word start     */
-#define SYNFLAG_CHAR_LIT     0x20   /* Elisp: ?a character literals     */
+/* ---- word syntax flags ---- */
+#define SYNFLAG_DOLLAR_VARS  0x01   /* Shell/PHP: $ is a word start/char */
+#define SYNFLAG_HYPHEN_WORDS 0x02   /* Elisp: - is a word char           */
 
 /* ---- data structures ---- */
 
+struct syntax_table;
+struct syn_rule;
+
+typedef int (*syn_rule_match_fn)(
+    struct syntax_table *st,
+    const struct syn_rule *rule,
+    const char *text,
+    int pos,
+    int textlen,
+    int *match_len,
+    int *color,
+    int *state
+);
+
 struct syn_rule {
     int                  sr_type;       /* SRULE_* */
+    int                  sr_color;      /* SCOLOR_* */
     char                *sr_start;      /* start delimiter / keyword */
     char                *sr_end;        /* end delimiter (NULL = to EOL) */
+    syn_rule_match_fn    sr_match;      /* matcher function */
     struct syn_rule     *sr_next;
 };
 
 struct syn_kw {                         /* keyword hash entry */
     char                *kw_word;
-    int                  kw_color;      /* SCOLOR_KEYWORD or SCOLOR_TYPE */
+    int                  kw_color;      /* SCOLOR_* */
     struct syn_kw       *kw_next;
 };
 
@@ -87,10 +104,6 @@ struct syntax_table {
     char                *st_lang;       /* "c", "python", "sh" */
     struct syn_rule     *st_rules;      /* linked list of rules */
     struct syn_kw       *st_kw[SYN_HASHSIZE]; /* keyword hash */
-    char               **st_strings;    /* string delimiter pairs */
-    int                  st_nstrings;
-    char               **st_line_comments; /* line comment prefixes */
-    int                  st_nline_comments;
     char                *st_block_start;   /* block comment start */
     char                *st_block_end;     /* block comment end */
     int                  st_flags;         /* SYNFLAG_* bitmask */
