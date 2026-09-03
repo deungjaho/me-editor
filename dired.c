@@ -51,6 +51,9 @@ static int	 d_backline(int, int);
 static int	 d_killbuffer_cmd(int, int);
 static int	 d_refreshbuffer(int, int);
 static int	 d_filevisitalt(int, int);
+static int	 d_up_directory(int, int);
+static int	 d_view_file(int, int);
+int		 view_file(int, int);
 static int	 d_gotofile(int, int);
 static void	 reaper(int);
 static int	 gotofile(char*);
@@ -144,7 +147,7 @@ static PF diredn[] = {
 	rescan,			/* s */
 	rescan,			/* t */
 	d_undel,		/* u */
-	rescan,			/* v */
+	d_view_file,		/* v */
 	rescan,			/* w */
 	d_expunge		/* x */
 };
@@ -155,6 +158,62 @@ static PF direddl[] = {
 
 static PF diredbp[] = {
 	d_backpage		/* v */
+};
+
+static PF diredhat[] = {
+	d_up_directory		/* ^ */
+};
+
+static PF viewnul[] = {
+	setmark,		/* ^@ */
+	gotobol,		/* ^A */
+	backchar,		/* ^B */
+	rescan,			/* ^C */
+	rescan,			/* ^D */
+	gotoeol,		/* ^E */
+	forwchar,		/* ^F */
+	ctrlg,			/* ^G */
+	NULL			/* ^H */
+};
+
+static PF viewcl[] = {
+	reposition,		/* ^L */
+	rescan,			/* ^M */
+	forwline,		/* ^N */
+	rescan,			/* ^O */
+	backline,		/* ^P */
+	rescan,			/* ^Q */
+	backisearch,		/* ^R */
+	forwisearch,		/* ^S */
+	rescan,			/* ^T */
+	universal_argument,	/* ^U */
+	forwpage,		/* ^V */
+	rescan,			/* ^W */
+	NULL			/* ^X */
+};
+
+static PF viewsp[] = {
+	forwpage		/* SP */
+};
+
+static PF viewlt[] = {
+	gotobob,		/* < */
+	rescan,			/* = */
+	gotoeob			/* > */
+};
+
+static PF viewqs[] = {
+	d_killbuffer_cmd,	/* q */
+	rescan,			/* r */
+	forwisearch		/* s */
+};
+
+static PF viewdel[] = {
+	backpage		/* DEL */
+};
+
+static PF viewescv[] = {
+	backpage		/* v */
 };
 
 static PF dirednull[] = {
@@ -172,9 +231,9 @@ static struct KEYMAPE (1) d_backpagemap = {
 	}
 };
 
-static struct KEYMAPE (7) diredmap = {
-	7,
-	7,
+static struct KEYMAPE (8) diredmap = {
+	8,
+	8,
 	rescan,
 	{
 		{
@@ -191,6 +250,9 @@ static struct KEYMAPE (7) diredmap = {
 			CCHR('Z'), '+', diredcz, (KEYMAP *) & metamap
 		},
 		{
+			'^', '^', diredhat, NULL
+		},
+		{
 			'a', 'j', direda, NULL
 		},
 		{
@@ -199,6 +261,30 @@ static struct KEYMAPE (7) diredmap = {
 		{
 			CCHR('?'), CCHR('?'), direddl, NULL
 		},
+	}
+};
+
+static struct KEYMAPE (1) viewescmap = {
+	1,
+	1,
+	rescan,
+	{
+		{ 'v', 'v', viewescv, NULL }
+	}
+};
+
+static struct KEYMAPE (7) viewmap = {
+	7,
+	7,
+	rescan,
+	{
+		{ CCHR('@'), CCHR('H'), viewnul, (KEYMAP *) & helpmap },
+		{ CCHR('L'), CCHR('X'), viewcl, (KEYMAP *) & cXmap },
+		{ CCHR('['), CCHR('['), dirednull, (KEYMAP *) & viewescmap },
+		{ ' ', ' ', viewsp, NULL },
+		{ '<', '>', viewlt, NULL },
+		{ 'q', 's', viewqs, NULL },
+		{ CCHR('?'), CCHR('?'), viewdel, NULL }
 	}
 };
 
@@ -223,8 +309,12 @@ dired_init(void)
 	funmap_add(d_shell_command, "dired-shell-command", 1);
 	funmap_add(d_undel, "dired-unmark", 0);
 	funmap_add(d_undelbak, "dired-unmark-backward", 0);
+	funmap_add(d_up_directory, "dired-up-directory", 0);
+	funmap_add(d_view_file, "dired-view-file", 0);
+	funmap_add(view_file, "view-file", 1);
 	funmap_add(d_killbuffer_cmd, "quit-window", 0);
 	maps_add((KEYMAP *)&diredmap, "dired");
+	maps_add((KEYMAP *)&viewmap, "view");
 	dobindkey(fundamental_map, "dired", "^Xd");
 }
 
@@ -889,6 +979,82 @@ d_filevisitalt (int f, int n)
 		return (FALSE);
 
 	return(do_filevisitalt(fname));
+}
+
+int
+d_up_directory(int f, int n)
+{
+	struct buffer	*bp;
+	char		 dname[NFILEN];
+
+	if (xdirname(dname, curbp->b_fname, sizeof(dname)) == 0)
+		(void)strlcpy(dname, "/", sizeof(dname));
+	if ((bp = dired_(dname)) == NULL)
+		return (FALSE);
+	curbp = bp;
+	return (showbuffer(bp, curwp, WFFULL | WFMODE));
+}
+
+int
+d_view_file(int f, int n)
+{
+	struct buffer	*bp;
+	int		 s;
+	char		 fname[NFILEN];
+
+	if ((s = d_makename(curwp->w_dotp, fname, sizeof(fname))) == ABORT)
+		return (FALSE);
+	if (s == TRUE)
+		bp = dired_(fname);
+	else
+		bp = findbuffer(fname);
+	if (bp == NULL)
+		return (FALSE);
+	curbp = bp;
+	if (showbuffer(bp, curwp, WFFULL) != TRUE)
+		return (FALSE);
+	if (bp->b_fname[0] != 0) {
+		bp->b_flag |= BFREADONLY;
+		return (TRUE);
+	}
+	if ((bp->b_modes[1] = name_mode("view")) != NULL)
+		bp->b_nmodes = 1;
+	if (readin(fname) != TRUE)
+		return (FALSE);
+	bp->b_flag |= BFREADONLY;
+	return (TRUE);
+}
+
+int
+view_file(int f, int n)
+{
+	struct buffer	*bp;
+	char		 fname[NFILEN], *bufp, *adjf;
+
+	if (getbufcwd(fname, sizeof(fname)) != TRUE)
+		fname[0] = '\0';
+	if ((bufp = eread("View file: ", fname, NFILEN,
+	    EFNEW | EFCR | EFFILE | EFDEF)) == NULL)
+		return (ABORT);
+	if (bufp[0] == '\0')
+		return (FALSE);
+	if ((adjf = adjustname(fname, TRUE)) == NULL)
+		return (FALSE);
+	if ((bp = findbuffer(adjf)) == NULL)
+		return (FALSE);
+	curbp = bp;
+	if (showbuffer(bp, curwp, WFFULL) != TRUE)
+		return (FALSE);
+	if (bp->b_fname[0] != 0) {
+		bp->b_flag |= BFREADONLY;
+		return (TRUE);
+	}
+	if ((bp->b_modes[1] = name_mode("view")) != NULL)
+		bp->b_nmodes = 1;
+	if (readin(adjf) != TRUE)
+		return (FALSE);
+	bp->b_flag |= BFREADONLY;
+	return (TRUE);
 }
 
 /*

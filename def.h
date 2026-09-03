@@ -392,6 +392,7 @@ int		 ask_makedir(void);
 /* dired.c */
 struct buffer	*dired_(char *);
 int		 dired_jump(int, int);
+int		 view_file(int, int);
 int 		 do_dired(char *);
 
 /* file.c X */
@@ -409,6 +410,7 @@ int		 makebkfile(int, int);
 int		 writeout(FILE **, struct buffer *, char *);
 void		 upmodes(struct buffer *);
 size_t		 xbasename(char *, const char *, size_t);
+size_t		 xdirname(char *, const char *, size_t);
 int		 do_filevisitalt(char *);
 
 /* line.c X */
