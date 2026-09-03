@@ -159,7 +159,7 @@ displaymatch(struct line *clp, int cbo)
 		curwp->w_rflag |= WFMOVE;
 
 		update(CMODE);		/* show match */
-		ttwait(1000);		/* wait for key or 1 second */
+		ttwait(300);		/* wait for key or 300ms */
 
 		curwp->w_dotp = tlp;	/* return to old position */
 		curwp->w_doto = tbo;
