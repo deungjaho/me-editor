@@ -781,11 +781,13 @@ update(int modelinecolor)
 					apply_region_hue(lp, line_num);
 					for (j = 0; j < llength(lp); )
 						vtputchar(lp, &j, wp, g_hue);
-					lp = lforw(lp);
-					line_num++;
 				}
 				vteeol();
 				apply_region_eol(line_num);
+				if (lp != wp->w_bufp->b_headp) {
+					lp = lforw(lp);
+					line_num++;
+				}
 				++i;
 			}
 		}

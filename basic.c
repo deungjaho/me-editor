@@ -34,6 +34,7 @@ gotobol(int f, int n)
 		return (TRUE);
 
 	curwp->w_doto = 0;
+	curwp->w_rflag |= WFMOVE;
 	return (TRUE);
 }
 
@@ -86,6 +87,7 @@ gotoeol(int f, int n)
 		return (TRUE);
 
 	curwp->w_doto = llength(curwp->w_dotp);
+	curwp->w_rflag |= WFMOVE;
 	return (TRUE);
 }
 
