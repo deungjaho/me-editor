@@ -92,12 +92,14 @@ ttraw(void)
  * Under UN*X this just calls ttcooked(), but the ttclose() hook is in
  * because vttidy() in display.c expects it for portability reasons.
  */
+/*
+ * Clean up terminal parameters and restore terminal state.
+ */
 void
 ttclose(void)
 {
 	if (ttstarted) {
-		if (ttcooked() == FALSE)
-			panic("");	/* ttcooked() already printf'd */
+		(void)ttcooked();
 		ttstarted = 0;
 	}
 }
@@ -111,8 +113,6 @@ ttcooked(void)
 {
 	ttflush();
 	if (tcsetattr(0, TCSASOFT | TCSADRAIN, &oldtty) == -1) {
-		dobeep();
-		ewprintf("ttclose can't tcsetattr");
 		return (FALSE);
 	}
 	return (TRUE);
@@ -177,6 +177,8 @@ ttgetc(void)
 
 	do {
 		ret = read(STDIN_FILENO, &c, 1);
+		if (ret == 0)
+			panic("lost stdin");
 		if (ret == -1 && errno == EINTR) {
 			if (winch_flag) {
 				redraw(0, 0);
@@ -202,7 +204,7 @@ charswaiting(void)
 }
 
 /*
- * panic - just exit, as quickly as we can.
+ * panic - cleanly restore terminal before exiting, avoiding host shell corruption.
  */
 void
 panic(char *s)
@@ -210,14 +212,19 @@ panic(char *s)
 	static int panicking = 0;
 
 	if (panicking)
-		return;
-	else
-		panicking = 1;
-	ttclose();
+		_exit(1);
+	panicking = 1;
+
+	/* Safely restore original terminal attributes if tty was placed in raw mode */
+	if (ttstarted) {
+		(void)tcsetattr(0, TCSASOFT | TCSADRAIN, &oldtty);
+		ttstarted = 0;
+	}
+
 	(void) fputs("panic: ", stderr);
 	(void) fputs(s, stderr);
-	(void) fputc('\n', stderr);	/* Use '\n' as no buffers now. */
-	exit(1);
+	(void) fputc('\n', stderr);
+	_exit(1);
 }
 
 /*

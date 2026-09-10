@@ -53,9 +53,17 @@ char		 pat[NPAT];			/* pattern		*/
 static void	 edinit(struct buffer *);
 static void	 pty_init(void);
 static __dead void usage(void);
+static void	 sig_exit_handler(int);
 
 extern char	*__progname;
 extern void     closetags(void);
+
+static void
+sig_exit_handler(int sig)
+{
+	ttclose();
+	_exit(128 + sig);
+}
 
 static __dead void
 usage(void)
@@ -157,6 +165,9 @@ main(int argc, char **argv)
 		errx(1, "Unknown function `%s'", init_fcn_name);
 
 	vtinit();		/* Virtual terminal.		*/
+	(void)signal(SIGHUP, sig_exit_handler);
+	(void)signal(SIGTERM, sig_exit_handler);
+	(void)signal(SIGQUIT, sig_exit_handler);
 	dirinit();		/* Get current directory.	*/
 	edinit(bp);		/* Buffers, windows.		*/
 	ttykeymapinit();	/* Symbols, bindings.		*/
