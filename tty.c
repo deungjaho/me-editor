@@ -402,12 +402,13 @@ ttnowindow(void)
 static const struct { int r, g, b; } rgb_table[] = {
     [SCOLOR_DEFAULT]  = { 189, 184, 158 },  /* #BDB89E sand (default) */
     [SCOLOR_KEYWORD]  = { 189, 184, 158 },  /* #BDB89E sand           */
-    [SCOLOR_TYPE]     = { 189, 184, 158 },  /* #BDB89E sand           */
+    [SCOLOR_TYPE]     = { 122, 162, 247 },  /* #7AA2F7 soft blue (exact types) */
     [SCOLOR_STRING]   = { 158, 237, 225 },  /* #9EEDE1 cyan/aqua      */
     [SCOLOR_COMMENT]  = { 117, 206, 118 },  /* #75CE76 lime green     */
     [SCOLOR_NUMBER]   = { 158, 237, 225 },  /* #9EEDE1 cyan (same as string) */
     [SCOLOR_PREPROC]  = { 189, 184, 158 },  /* #BDB89E sand           */
     [SCOLOR_CONTROL]  = { 255, 107, 157 },  /* #FF6B9D rose/magenta   */
+    [SCOLOR_RULER]    = { 65, 70, 82 },     /* #414652 subtle dark gray vertical line */
 };
 #define RGB_TABLE_SIZE (int)(sizeof(rgb_table)/sizeof(rgb_table[0]))
 

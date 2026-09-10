@@ -1,0 +1,118 @@
+# Solidity syntax definition for me
+
+# High-risk / Value Transfer & Execution Control (Key Intent for Solidity)
+control: revert
+control: require
+control: assert
+control: payable
+control: selfdestruct
+control: return
+control: returns
+control: break
+control: continue
+control: if
+control: else
+control: for
+control: while
+control: do
+control: try
+control: catch
+control: modifier
+control: emit
+
+# Declarations & Structure
+keyword: contract
+keyword: interface
+keyword: library
+keyword: is
+keyword: function
+keyword: constructor
+keyword: fallback
+keyword: receive
+keyword: event
+keyword: error
+keyword: struct
+keyword: enum
+keyword: mapping
+keyword: public
+keyword: private
+keyword: internal
+keyword: external
+keyword: pure
+keyword: view
+keyword: virtual
+keyword: override
+keyword: memory
+keyword: storage
+keyword: calldata
+keyword: constant
+keyword: immutable
+keyword: anonymous
+keyword: indexed
+keyword: using
+keyword: for
+keyword: import
+keyword: pragma
+keyword: solidity
+keyword: new
+keyword: delete
+
+# Global Transaction Context & Security Builtins (highlighted blue)
+type: msg
+type: tx
+type: block
+type: address
+type: abi
+type: keccak256
+type: sha256
+type: ripemd160
+type: ecrecover
+type: addmod
+type: mulmod
+
+# Packed types & custom bitwidths (critical for storage packing / gas optimization)
+type: bytes32
+type: uint8
+type: uint16
+type: uint32
+type: uint64
+type: uint128
+type: int8
+type: int16
+type: int32
+type: int64
+type: int128
+
+# Default/General EVM types (neutral sand)
+keyword: uint
+keyword: uint256
+keyword: int
+keyword: int256
+keyword: bool
+keyword: string
+keyword: bytes
+keyword: bytes1
+keyword: bytes4
+keyword: bytes8
+keyword: this
+keyword: super
+
+# Strings
+string: " "
+string: ' '
+
+# Comments
+line_comment: //
+block_comment: /* */
+
+# Constants
+constant: true
+constant: false
+constant: wei
+constant: gwei
+constant: ether
+constant: seconds
+constant: minutes
+constant: hours
+constant: days
+constant: weeks

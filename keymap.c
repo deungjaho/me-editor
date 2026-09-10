@@ -123,7 +123,7 @@ static struct KEYMAPE (2) cX4map = {
 static PF cXcB[] = {
 	listbuffers,		/* ^B */
 	quit,			/* ^C */
-	rescan,			/* ^D */
+	dired,			/* ^D — same as C-x d */
 	rescan,			/* ^E */
 	filevisit,		/* ^F */
 	ctrlg			/* ^G */
@@ -171,7 +171,7 @@ static PF cXcar[] = {
 	rescan,			/* a */
 	usebuffer,		/* b */
 	rescan,			/* c */
-	rescan,			/* d */
+	dired,			/* d */
 	executemacro,		/* e */
 	setfillcol,		/* f */
 	gotoline,		/* g */
@@ -252,7 +252,7 @@ static PF metami[] = {
 	digit_argument,		/* 8 */
 	digit_argument,		/* 9 */
 	rescan,			/* : */
-	rescan,			/* ; */
+	comment_line,		/* ; */
 	gotobob,		/* < */
 	rescan,			/* = */
 	gotoeob			/* > */
@@ -265,11 +265,11 @@ static PF metasqf[] = {
 	joinline,		/* ^ */
 	rescan,			/* _ */
 	rescan,			/* ` */
-	rescan,			/* a */
+	gotobop,		/* a */
 	backword,		/* b */
 	capword,		/* c */
 	delfword,		/* d */
-	rescan,			/* e */
+	gotoeop,		/* e */
 	forwword,		/* f */
 	rescan,			/* g */
 	markpara		/* h */
@@ -394,11 +394,11 @@ static PF fund_esc[] = {
 };
 
 static PF fund_del[] = {
-	backdel			/* DEL */
+	smart_backdel		/* DEL */
 };
 
 static PF fund_cb[] = {
-	showmatch		/* ) ] }  */
+	autopair_insert		/* ) ] }  */
 };
 
 static struct KEYMAPE (8) fundmap = {

@@ -60,11 +60,8 @@ struct score {
 void	vtmove(int, int);
 void	vtputc(int, struct mgwin *);
 void	vtputchar(struct line *, int *, struct mgwin *, const char *);
-void	vtpute(int, struct mgwin *);
-void	vtputechar(struct line *, int *, struct mgwin *, const char *);
 int	vtputs(const char *, struct mgwin *);
 void	vteeol(void);
-void	updext(int, int);
 void	modeline(struct mgwin *, int);
 void	setscores(int, int);
 void	traceback(int, int, int, int);
@@ -83,6 +80,12 @@ int	tttop = HUGE;		/* Top of scroll region.	 */
 int	ttbot = HUGE;		/* Bottom of scroll region.	 */
 int	lbound = 0;		/* leftmost bound of the current */
 				/* line being displayed		 */
+static int	curline_lbound = 0;	/* horizontal scroll offset of current line */
+static struct line *last_dotp = NULL; /* track line of dot across updates */
+static int	last_dotline = -1;    /* track dotline across updates */
+static int	last_doto = -1;        /* track doto across updates */
+static int	last_match_row = -1;  /* previous matched paren row */
+static struct line *last_match_lp = NULL; /* previous matched paren line */
 static char	vt_hue = 0;	/* current syntax hue for vtputc */
 static char	*g_hue = NULL;	/* per-byte syntax colors for current line */
 static int	g_hue_size = 0;	/* allocated size of g_hue */
@@ -428,6 +431,134 @@ vtmove(int row, int col)
 	vtcol = col;
 }
 
+/* Horizontal scroll margin and step */
+#define HSCROLL_MARGIN 5
+#define HSCROLL_STEP   10
+
+/*
+ * Safely set a 1-column UTF-8 indicator (e.g. "«" or "»") at col in vp with color hue.
+ * If col lands inside or at the start of a multi-byte / wide character,
+ * blanks out all affected columns so UTF-8 / CJK character boundaries are preserved.
+ */
+static void
+set_boundary_indicator(struct video *vp, int col, const char *sym, int hue)
+{
+	int w, k;
+
+	if (col < 0 || col >= ncol)
+		return;
+
+	w = vp->v_wid[col];
+	if (w == 0) {
+		/* Continuation column: find where character started */
+		int start = col;
+		while (start > 0 && vp->v_wid[start] == 0)
+			start--;
+		int orig_w = vp->v_wid[start];
+		if (orig_w <= 0)
+			orig_w = 1;
+		for (k = 0; k < orig_w && (start + k) < ncol; k++) {
+			memset(VSLOT(vp, start + k), 0, UTF8_MAX_BYTES);
+			VSLOT(vp, start + k)[0] = ' ';
+			vp->v_wid[start + k] = 1;
+			vp->v_hue[start + k] = SCOLOR_DEFAULT;
+		}
+	} else if (w > 1) {
+		/* Multi-column character starts here: clear continuation columns */
+		for (k = 1; k < w && (col + k) < ncol; k++) {
+			memset(VSLOT(vp, col + k), 0, UTF8_MAX_BYTES);
+			VSLOT(vp, col + k)[0] = ' ';
+			vp->v_wid[col + k] = 1;
+			vp->v_hue[col + k] = SCOLOR_DEFAULT;
+		}
+	}
+
+	memset(VSLOT(vp, col), 0, UTF8_MAX_BYTES);
+	(void)strlcpy(VSLOT(vp, col), sym, UTF8_MAX_BYTES);
+	vp->v_wid[col] = 1;
+	vp->v_hue[col] = hue;
+}
+
+/*
+ * Calculate horizontal display column for offset `doto` in line `lp`.
+ */
+static int
+line_col_at_offset(struct line *lp, int doto, int tabw)
+{
+	int col = 0;
+	int i = 0;
+	int c;
+
+	while (i < doto && i < llength(lp)) {
+		c = lgetc(lp, i);
+		if (c == '\t') {
+			col = ntabstop(col, tabw);
+			i++;
+		} else if ((unsigned char)c >= 0x80) {
+			int len, w;
+			w = utf8_width(&lp->l_text[i], llength(lp) - i, &len);
+			if (w < 0) {
+				col += 4; /* \ooo */
+				i++;
+			} else {
+				col += w;
+				i += len;
+			}
+		} else if (ISCTRL(c) != FALSE) {
+			col += 2;
+			i++;
+		} else if (isprint(c)) {
+			col++;
+			i++;
+		} else {
+			char bf[5];
+			snprintf(bf, sizeof(bf), "\\%o", c);
+			col += strlen(bf);
+			i++;
+		}
+	}
+	return col;
+}
+
+/*
+ * Compute horizontal scroll offset (lbound) for the current cursor column.
+ * Uses horizontal scroll margin and step for smooth scrolling.
+ */
+static int
+compute_line_hscroll(int curcol, int wcols, int prev_lbound)
+{
+	int lbound = prev_lbound;
+	int margin = HSCROLL_MARGIN;
+	int step = HSCROLL_STEP;
+
+	if (wcols < 2)
+		return 0;
+
+	if (margin * 2 >= wcols)
+		margin = 1;
+
+	if (curcol < margin)
+		return 0;
+
+	if (lbound > 0 && curcol < lbound + margin) {
+		lbound = curcol - margin;
+		if (step > 1)
+			lbound = (lbound / step) * step;
+		if (lbound < 0)
+			lbound = 0;
+	} else if (curcol >= lbound + wcols - margin) {
+		int target = curcol - (wcols - margin - 1);
+		if (step > 1)
+			lbound = ((target + step - 1) / step) * step;
+		else
+			lbound = target;
+	}
+
+	if (lbound < 0)
+		lbound = 0;
+	return lbound;
+}
+
 /*
  * Write a single-byte character to the virtual display,
  * dealing with long lines and the display of unprintable
@@ -450,23 +581,22 @@ vtputc(int c, struct mgwin *wp)
 
 	vp = vscreen[vtrow];
 	if (vtcol >= vt_rightcol) {
-		memset(VSLOT(vp, vt_rightcol - 1), 0, UTF8_MAX_BYTES);
-		VSLOT(vp, vt_rightcol - 1)[0] = '$';
-		vp->v_wid[vt_rightcol - 1] = 1;
-		vp->v_hue[vt_rightcol - 1] = vt_hue;
+		set_boundary_indicator(vp, vt_rightcol - 1, "»", SCOLOR_CONTROL);
 	} else if (c == '\t') {
-		target = ntabstop(vtcol, wp->w_bufp->b_tabw);
+		target = ntabstop(vtcol + lbound - wp->w_leftcol, wp->w_bufp->b_tabw);
 		do {
 			vtputc(' ', wp);
-		} while (vtcol < vt_rightcol && vtcol < target);
+		} while (vtcol < vt_rightcol && (vtcol + lbound - wp->w_leftcol) < target);
 	} else if (ISCTRL(c)) {
 		vtputc('^', wp);
 		vtputc(CCHR(c), wp);
 	} else if (isprint(c)) {
-		memset(VSLOT(vp, vtcol), 0, UTF8_MAX_BYTES);
-		VSLOT(vp, vtcol)[0] = c;
-		vp->v_wid[vtcol] = 1;
-		vp->v_hue[vtcol] = vt_hue;
+		if (vtcol >= wp->w_leftcol) {
+			memset(VSLOT(vp, vtcol), 0, UTF8_MAX_BYTES);
+			VSLOT(vp, vtcol)[0] = c;
+			vp->v_wid[vtcol] = 1;
+			vp->v_hue[vtcol] = vt_hue;
+		}
 		vtcol++;
 	} else {
 		char bf[5];
@@ -512,113 +642,37 @@ vtputchar(struct line *lp, int *pj, struct mgwin *wp, const char *hue)
 	}
 	if (vtcol + w > vt_rightcol) {
 		/* overflow */
-		memset(VSLOT(vp, vt_rightcol - 1), 0, UTF8_MAX_BYTES);
-		VSLOT(vp, vt_rightcol - 1)[0] = '$';
-		vp->v_wid[vt_rightcol - 1] = 1;
-		vp->v_hue[vt_rightcol - 1] = vt_hue;
+		set_boundary_indicator(vp, vt_rightcol - 1, "»", SCOLOR_CONTROL);
 		*pj = j + len;
 		return;
 	}
-	/* write the slot */
-	memset(VSLOT(vp, vtcol), 0, UTF8_MAX_BYTES);
-	memcpy(VSLOT(vp, vtcol), &lp->l_text[j], len);
-	vp->v_wid[vtcol] = w;
-	vp->v_hue[vtcol] = vt_hue;
-	/* mark continuation columns */
-	for (col = 1; col < w; col++) {
-		memset(VSLOT(vp, vtcol + col), 0, UTF8_MAX_BYTES);
-		vp->v_wid[vtcol + col] = 0;
-		vp->v_hue[vtcol + col] = vt_hue;
-	}
-	vtcol += w;
-	*pj = j + len;
-}
-
-/*
- * Put a character to the virtual screen in an extended line.  If we are not
- * yet on left edge, don't print it yet.  Check for overflow on the right
- * margin.
- */
-void
-vtpute(int c, struct mgwin *wp)
-{
-	struct video *vp;
-	int target;
-
-	c &= 0xff;
-
-	vp = vscreen[vtrow];
-	if (vtcol >= vt_rightcol) {
-		memset(VSLOT(vp, vt_rightcol - 1), 0, UTF8_MAX_BYTES);
-		VSLOT(vp, vt_rightcol - 1)[0] = '$';
-		vp->v_wid[vt_rightcol - 1] = 1;
-		vp->v_hue[vt_rightcol - 1] = vt_hue;
-	} else if (c == '\t') {
-		target = ntabstop(vtcol + lbound, wp->w_bufp->b_tabw);
-		do {
-			vtpute(' ', wp);
-		} while (((vtcol + lbound) < target) && vtcol < vt_rightcol);
-	} else if (ISCTRL(c) != FALSE) {
-		vtpute('^', wp);
-		vtpute(CCHR(c), wp);
-	} else if (isprint(c)) {
-		if (vtcol >= 0) {
-			memset(VSLOT(vp, vtcol), 0, UTF8_MAX_BYTES);
-			VSLOT(vp, vtcol)[0] = c;
-			vp->v_wid[vtcol] = 1;
-			vp->v_hue[vtcol] = vt_hue;
-		}
-		++vtcol;
-	} else {
-		char bf[5], *cp;
-
-		snprintf(bf, sizeof(bf), "\\%o", c);
-		for (cp = bf; *cp != '\0'; cp++)
-			vtpute(*cp, wp);
-	}
-}
-
-/*
- * Extended-line variant of vtputchar: writes one character
- * from lp at *pj, but only renders it once vtcol >= 0 (i.e.
- * past the left scroll bound).
- */
-void
-vtputechar(struct line *lp, int *pj, struct mgwin *wp, const char *hue)
-{
-	struct video *vp;
-	int j, c, len, w, col;
-
-	j = *pj;
-	c = (unsigned char)lgetc(lp, j);
-	vt_hue = hue ? hue[j] : 0;
-
-	if (c < 0x80) {
-		vtpute(c, wp);
-		*pj = j + 1;
-		return;
-	}
-
-	vp = vscreen[vtrow];
-	w = utf8_width(&lp->l_text[j], llength(lp) - j, &len);
-	if (w < 0) {
-		vtpute(c, wp);
-		*pj = j + 1;
-		return;
-	}
-	if (w == 0) {
-		*pj = j + len;
-		return;
-	}
-	if (vtcol >= 0 && vtcol + w <= ncol) {
+	/* write the slot only if within window visible bounds */
+	if (vtcol >= wp->w_leftcol) {
 		memset(VSLOT(vp, vtcol), 0, UTF8_MAX_BYTES);
 		memcpy(VSLOT(vp, vtcol), &lp->l_text[j], len);
 		vp->v_wid[vtcol] = w;
 		vp->v_hue[vtcol] = vt_hue;
+		/* mark continuation columns */
 		for (col = 1; col < w; col++) {
 			memset(VSLOT(vp, vtcol + col), 0, UTF8_MAX_BYTES);
 			vp->v_wid[vtcol + col] = 0;
 			vp->v_hue[vtcol + col] = vt_hue;
+		}
+	} else if (vtcol + w > wp->w_leftcol) {
+		/*
+		 * Multi-column character (e.g. CJK wide character, w=2) spans across the
+		 * left boundary (w_leftcol). The left column fell off-screen.
+		 * Safely pad the visible right column with a space so column coordinates
+		 * and character cells remain strictly aligned without visual corruption.
+		 */
+		for (col = 0; col < w; col++) {
+			int cpos = vtcol + col;
+			if (cpos >= wp->w_leftcol && cpos < vt_rightcol) {
+				memset(VSLOT(vp, cpos), 0, UTF8_MAX_BYTES);
+				VSLOT(vp, cpos)[0] = ' ';
+				vp->v_wid[cpos] = 1;
+				vp->v_hue[cpos] = SCOLOR_DEFAULT;
+			}
 		}
 	}
 	vtcol += w;
@@ -636,6 +690,8 @@ vteeol(void)
 	struct video *vp;
 
 	vp = vscreen[vtrow];
+	if (vtcol < 0)
+		vtcol = 0;
 	while (vtcol < vt_rightcol) {
 		memset(VSLOT(vp, vtcol), 0, UTF8_MAX_BYTES);
 		VSLOT(vp, vtcol)[0] = ' ';
@@ -697,6 +753,36 @@ update(int modelinecolor)
 			wp = wp->w_wndp;
 		}
 	}
+
+	/*
+	 * Pre-compute cursor column and horizontal scroll offset (curline_lbound)
+	 * for curwp before any line rendering.
+	 */
+	if (curwp->w_dotp != last_dotp) {
+		curline_lbound = 0;
+		last_dotp = curwp->w_dotp;
+	}
+
+	/*
+	 * If cursor moved away from previous position, force a repaint of
+	 * previously highlighted matching paren line so the highlight clears cleanly.
+	 */
+	if (curwp->w_dotline != last_dotline || curwp->w_doto != last_doto) {
+		if (last_match_lp != NULL && last_match_lp != curwp->w_dotp) {
+			curwp->w_rflag |= WFFULL;
+		} else {
+			curwp->w_rflag |= WFEDIT;
+		}
+		last_dotline = curwp->w_dotline;
+		last_doto = curwp->w_doto;
+	}
+
+	curcol = line_col_at_offset(curwp->w_dotp, curwp->w_doto, curwp->w_bufp->b_tabw);
+	int old_lbound = curline_lbound;
+	curline_lbound = compute_line_hscroll(curcol, curwp->w_ntcols, curline_lbound);
+	if (curline_lbound != old_lbound)
+		curwp->w_rflag |= WFEDIT;
+
 	hflag = FALSE;			/* Not hard. */
 	for (wp = wheadp; wp != NULL; wp = wp->w_wndp) {
 		/*
@@ -749,15 +835,23 @@ update(int modelinecolor)
 				++i;
 				lp = lforw(lp);
 			}
+			int this_lbound = (wp == curwp && lp == curwp->w_dotp) ? curline_lbound : 0;
+			lbound = this_lbound;
 			vscreen[i]->v_color = CTEXT;
 			vscreen[i]->v_flag |= (VFCHG | VFHBAD);
-			vtmove(i, wp->w_leftcol);
+			if (this_lbound > 0)
+				vscreen[i]->v_flag |= VFEXT;
+			else
+				vscreen[i]->v_flag &= ~VFEXT;
+			vtmove(i, wp->w_leftcol - this_lbound);
 			ensure_hue_line(lp);
 			syntax_match_line(lback(lp), lp, g_hue, ncol);
 			apply_region_hue(lp, wp->w_dotline);
 			for (j = 0; j < llength(lp); )
 				vtputchar(lp, &j, wp, g_hue);
 			vteeol();
+			if (this_lbound > 0)
+				set_boundary_indicator(vscreen[i], wp->w_leftcol, "«", SCOLOR_CONTROL);
 		} else if ((wp->w_rflag & (WFEDIT | WFFULL)) != 0) {
 			hflag = TRUE;
 			/* compute buffer line number of first screen line */
@@ -771,9 +865,15 @@ update(int modelinecolor)
 				}
 			}
 			while (i < wp->w_toprow + wp->w_ntrows) {
+				int this_lbound = (wp == curwp && lp == curwp->w_dotp) ? curline_lbound : 0;
+				lbound = this_lbound;
 				vscreen[i]->v_color = CTEXT;
 				vscreen[i]->v_flag |= (VFCHG | VFHBAD);
-				vtmove(i, wp->w_leftcol);
+				if (this_lbound > 0)
+					vscreen[i]->v_flag |= VFEXT;
+				else
+					vscreen[i]->v_flag &= ~VFEXT;
+				vtmove(i, wp->w_leftcol - this_lbound);
 				if (lp != wp->w_bufp->b_headp) {
 					ensure_hue_line(lp);
 					syntax_match_line(lback(lp), lp,
@@ -783,6 +883,8 @@ update(int modelinecolor)
 						vtputchar(lp, &j, wp, g_hue);
 				}
 				vteeol();
+				if (this_lbound > 0)
+					set_boundary_indicator(vscreen[i], wp->w_leftcol, "«", SCOLOR_CONTROL);
 				apply_region_eol(line_num);
 				if (lp != wp->w_bufp->b_headp) {
 					lp = lforw(lp);
@@ -819,78 +921,83 @@ update(int modelinecolor)
 		++currow;
 		lp = lforw(lp);
 	}
-	curcol = curwp->w_leftcol;
-	i = 0;
-	while (i < curwp->w_doto) {
-		c = lgetc(lp, i);
-		if (c == '\t') {
-			curcol = curwp->w_leftcol + ntabstop(curcol - curwp->w_leftcol, curwp->w_bufp->b_tabw);
-			i++;
-		} else if ((unsigned char)c >= 0x80) {
-			int len, w;
-			w = utf8_width(&lp->l_text[i],
-			    llength(lp) - i, &len);
-			if (w < 0) {
-				curcol += 4;	/* \ooo */
-				i++;
-			} else {
-				curcol += w;
-				i += len;
+	lbound = curline_lbound;
+
+	int cursor_col = curwp->w_leftcol + (curcol - curline_lbound);
+	if (cursor_col < curwp->w_leftcol)
+		cursor_col = curwp->w_leftcol;
+	else if (cursor_col >= curwp->w_leftcol + curwp->w_ntcols)
+		cursor_col = curwp->w_leftcol + curwp->w_ntcols - 1;
+
+	/* Passive paren matching: highlight matching bracket in vscreen and show line in echo */
+	struct line *match_lp = NULL;
+	int match_off = 0, match_lineno = 0;
+	if (find_match_paren(curwp->w_dotp, curwp->w_doto, &match_lp, &match_off, &match_lineno)) {
+		int m_row = -1;
+		int r = curwp->w_toprow;
+		struct line *tlp = curwp->w_linep;
+		while (r < curwp->w_toprow + curwp->w_ntrows && tlp != curbp->b_headp) {
+			if (tlp == match_lp) {
+				m_row = r;
+				break;
 			}
-		} else if (ISCTRL(c) != FALSE) {
-			curcol += 2;
-			i++;
-		} else if (isprint(c)) {
-			curcol++;
-			i++;
-		} else {
-			char bf[5];
-			snprintf(bf, sizeof(bf), "\\%o", c);
-			curcol += strlen(bf);
-			i++;
+			tlp = lforw(tlp);
+			r++;
 		}
+		if (m_row != -1) {
+			/* Inside current visible window */
+			int m_col = line_col_at_offset(match_lp, match_off, curbp->b_tabw);
+			int this_lbound = (match_lp == curwp->w_dotp) ? curline_lbound : 0;
+			int phys_col = curwp->w_leftcol + (m_col - this_lbound);
+			if (phys_col >= curwp->w_leftcol && phys_col < curwp->w_leftcol + curwp->w_ntcols) {
+				/* Invert/highlight partner bracket */
+				vscreen[m_row]->v_hue[phys_col] = SCOLOR_CONTROL | REGION_BIT;
+				vscreen[m_row]->v_flag |= VFCHG;
+				last_match_row = m_row;
+				last_match_lp = match_lp;
+			}
+		} else {
+			/* Off-screen: show matched line number in echo area */
+			ewprintf("Matches line %d: %.*s", match_lineno,
+			    llength(match_lp) > 60 ? 60 : llength(match_lp), match_lp->l_text);
+			last_match_row = -1;
+			last_match_lp = NULL;
+		}
+	} else {
+		last_match_row = -1;
+		last_match_lp = NULL;
 	}
-	if (curcol >= curwp->w_leftcol + curwp->w_ntcols - 1) {	/* extended line. */
-		/* flag we are extended and changed */
-		vscreen[currow]->v_flag |= VFEXT | VFCHG;
-		updext(currow, curcol);	/* and output extended line */
-	} else
-		lbound = 0;	/* not extended line */
 
 	/*
-	 * Make sure no lines need to be de-extended because the cursor is no
-	 * longer on them.
+	 * Draw 80 & 120 column indicator rulers (vertical guide lines)
+	 * across text lines in editable buffers (excluding dired).
 	 */
-	wp = wheadp;
-	while (wp != NULL) {
-		lp = wp->w_linep;
-		i = wp->w_toprow;
-		while (i < wp->w_toprow + wp->w_ntrows) {
-			if (vscreen[i]->v_flag & VFEXT) {
-				/* always flag extended lines as changed */
-				vscreen[i]->v_flag |= VFCHG;
-				if ((wp != curwp) || (lp != wp->w_dotp) ||
-				    (curcol < wp->w_leftcol + wp->w_ntcols - 1)) {
-					vt_rightcol = wp->w_leftcol + wp->w_ntcols;
-					vtmove(i, wp->w_leftcol);
-					ensure_hue_line(lp);
-					syntax_match_line(lback(lp), lp,
-					    g_hue, ncol);
-					for (j = 0; j < llength(lp); )
-						vtputchar(lp, &j, wp, g_hue);
-					vteeol();
-					/* this line no longer is extended */
-					vscreen[i]->v_flag &= ~VFEXT;
+	for (wp = wheadp; wp != NULL; wp = wp->w_wndp) {
+		if (wp->w_bufp == NULL || (wp->w_bufp->b_flag & BFDIREDDEL) != 0 ||
+		    (wp->w_bufp->b_modes[wp->w_bufp->b_nmodes] != NULL &&
+		     strcmp(wp->w_bufp->b_modes[wp->w_bufp->b_nmodes]->p_name, "dired") == 0))
+			continue;
+
+		int rulers[2] = { 80, 120 };
+		for (int ridx = 0; ridx < 2; ridx++) {
+			int rcol = rulers[ridx];
+			int phys_col = wp->w_leftcol + (rcol - 1);
+			if (phys_col < wp->w_leftcol || phys_col >= wp->w_leftcol + wp->w_ntcols)
+				continue;
+
+			for (i = wp->w_toprow; i < wp->w_toprow + wp->w_ntrows; i++) {
+				struct video *vp = vscreen[i];
+				if (vp->v_color != CTEXT)
+					continue;
+				/* Only place subtle ruler if column is currently blank space */
+				if (vp->v_wid[phys_col] == 1 && VSLOT(vp, phys_col)[0] == ' ') {
+					memset(VSLOT(vp, phys_col), 0, UTF8_MAX_BYTES);
+					(void)strlcpy(VSLOT(vp, phys_col), "│", UTF8_MAX_BYTES);
+					vp->v_hue[phys_col] = SCOLOR_RULER;
+					vp->v_flag |= VFCHG;
 				}
 			}
-			lp = lforw(lp);
-			++i;
 		}
-		/* if garbaged then fix up mode lines */
-		if (sgarbf != FALSE)
-			vscreen[i]->v_flag |= VFCHG;
-		/* and onward to the next window */
-		wp = wp->w_wndp;
 	}
 
 	if (sgarbf != FALSE) {	/* Screen is garbage.	 */
@@ -906,7 +1013,7 @@ update(int modelinecolor)
 			uline(i, vscreen[i], &blanks);
 			ucopy(vscreen[i], pscreen[i]);
 		}
-		ttmove(currow, curcol - lbound);
+		ttmove(currow, cursor_col);
 		ttflush();
 		return;
 	}
@@ -927,7 +1034,7 @@ update(int modelinecolor)
 			++offs;
 		}
 		if (offs == nrow - 1) {		/* Might get it all.	*/
-			ttmove(currow, curcol - lbound);
+			ttmove(currow, cursor_col);
 			ttflush();
 			return;
 		}
@@ -948,7 +1055,7 @@ update(int modelinecolor)
 		traceback(offs, size, size, size);
 		for (i = 0; i < size; ++i)
 			ucopy(vscreen[offs + i], pscreen[offs + i]);
-		ttmove(currow, curcol - lbound);
+		ttmove(currow, cursor_col);
 		ttflush();
 		return;
 	}
@@ -960,7 +1067,7 @@ update(int modelinecolor)
 			ucopy(vp1, vp2);
 		}
 	}
-	ttmove(currow, curcol - lbound);
+	ttmove(currow, cursor_col);
 	ttflush();
 }
 
@@ -983,45 +1090,6 @@ ucopy(struct video *vvp, struct video *pvp)
 	bcopy(vvp->v_text, pvp->v_text, ncol * UTF8_MAX_BYTES);
 	bcopy(vvp->v_wid, pvp->v_wid, ncol);
 	bcopy(vvp->v_hue, pvp->v_hue, ncol);
-}
-
-/*
- * updext: update the extended line which the cursor is currently on at a
- * column greater than the terminal width. The line will be scrolled right or
- * left to let the user see where the cursor is.
- */
-void
-updext(int currow, int curcol)
-{
-	struct line	*lp;			/* pointer to current line */
-	int	 j;			/* index into line */
-	int	 wcols = curwp->w_ntcols;	/* window column width */
-
-	if (wcols < 2)
-		return;
-
-	/*
-	 * calculate what column the left bound should be
-	 * (force cursor into middle half of screen)
-	 */
-	lbound = (curcol - curwp->w_leftcol) - ((curcol - curwp->w_leftcol) % (wcols >> 1)) - (wcols >> 2);
-
-	/*
-	 * scan through the line outputting characters to the virtual screen
-	 * once we reach the left edge
-	 */
-	vt_rightcol = curwp->w_leftcol + curwp->w_ntcols;
-	vtmove(currow, curwp->w_leftcol - lbound);	/* start scanning offscreen */
-	lp = curwp->w_dotp;			/* line to output */
-	ensure_hue_line(lp);
-	syntax_match_line(lback(lp), lp, g_hue, ncol);
-	for (j = 0; j < llength(lp); )		/* until the end-of-line */
-		vtputechar(lp, &j, curwp, g_hue);
-	vteeol();				/* truncate the virtual line */
-	memset(VSLOT(vscreen[currow], 0), 0, UTF8_MAX_BYTES);
-	VSLOT(vscreen[currow], 0)[0] = '$';	/* '$' in column 1 */
-	vscreen[currow]->v_wid[0] = 1;
-	vscreen[currow]->v_hue[0] = 0;
 }
 
 /*
@@ -1172,6 +1240,72 @@ uline(int row, struct video *vvp, struct video *pvp)
 }
 
 /*
+ * Fast and lightweight git branch detection:
+ * Searches parent directories for .git/HEAD and reads the branch name.
+ */
+static int
+get_git_branch(const char *dir_path, char *branch, size_t maxlen)
+{
+	char cur_path[PATH_MAX];
+	char head_path[PATH_MAX];
+	char buf[256];
+	FILE *fp;
+
+	if (dir_path == NULL || dir_path[0] == '\0')
+		return 0;
+
+	if (strlcpy(cur_path, dir_path, sizeof(cur_path)) >= sizeof(cur_path))
+		return 0;
+
+	for (int depth = 0; depth < 10; depth++) {
+		snprintf(head_path, sizeof(head_path), "%s/.git/HEAD", cur_path);
+		fp = fopen(head_path, "r");
+		if (fp != NULL) {
+			if (fgets(buf, sizeof(buf), fp) != NULL) {
+				fclose(fp);
+				/* Parse "ref: refs/heads/branch_name" */
+				char *p = buf;
+				while (*p == ' ' || *p == '\t') p++;
+				if (strncmp(p, "ref: refs/heads/", 16) == 0) {
+					p += 16;
+					int blen = strlen(p);
+					while (blen > 0 && (p[blen - 1] == '\n' || p[blen - 1] == '\r' || p[blen - 1] == ' '))
+						p[--blen] = '\0';
+					(void)strlcpy(branch, p, maxlen);
+					return 1;
+				} else {
+					/* Detached HEAD - use short commit hash */
+					int blen = strlen(p);
+					while (blen > 0 && (p[blen - 1] == '\n' || p[blen - 1] == '\r' || p[blen - 1] == ' '))
+						p[--blen] = '\0';
+					if (blen > 7)
+						p[7] = '\0';
+					(void)strlcpy(branch, p, maxlen);
+					return 1;
+				}
+			}
+			fclose(fp);
+			return 0;
+		}
+
+		/* Go to parent directory */
+		char *last_slash = strrchr(cur_path, '/');
+		if (last_slash == NULL || last_slash == cur_path)
+			break;
+		*last_slash = '\0';
+	}
+	return 0;
+}
+
+/*
+ * Redisplay the mode line for the window pointed to by the "wp".
+ * This is the only routine that has any idea of how the mode line is
+ * formatted. You can change the modeline format by hacking at this
+ * routine. Called by "update" any time there is a dirty window.  Note
+ * that if STANDOUT_GLITCH is defined, first and last magic_cookie_glitch
+ * characters may never be seen.
+ */
+/*
  * Redisplay the mode line for the window pointed to by the "wp".
  * This is the only routine that has any idea of how the mode line is
  * formatted. You can change the modeline format by hacking at this
@@ -1184,8 +1318,6 @@ modeline(struct mgwin *wp, int modelinecolor)
 {
 	int	n, md;
 	struct buffer *bp;
-	char sl[32];
-	int len;
 
 	n = wp->w_toprow + wp->w_ntrows;	/* Location.		 */
 	vscreen[n]->v_color = modelinecolor;	/* Mode line color.	 */
@@ -1194,84 +1326,201 @@ modeline(struct mgwin *wp, int modelinecolor)
 	vtmove(n, wp->w_leftcol);		/* Seek to right line.	 */
 	vt_hue = 0;				/* modeline has no syntax hue */
 	bp = wp->w_bufp;
-	/* Status: -- clean, ** modified, %% readonly, %* readonly+modified */
-	vtputc('-', wp);
-	if ((bp->b_flag & BFREADONLY) != 0) {
-		vtputc('%', wp);
-		if ((bp->b_flag & BFCHG) != 0)
-			vtputc('*', wp);
-		else
-			vtputc('%', wp);
-	} else if ((bp->b_flag & BFCHG) != 0) {
-		vtputc('*', wp);
-		vtputc('*', wp);
-	} else {
-		vtputc('-', wp);
-		vtputc('-', wp);
-	}
-	n = 3;
-	/* Buffer name (no fixed padding) */
-	n += vtputs("Me:", wp);
+
+	/* Check if this buffer is in dired mode */
+	int is_dired = 0;
+	if (bp->b_nmodes >= 1 && bp->b_modes[1] != NULL &&
+	    strcmp(bp->b_modes[1]->p_name, "dired") == 0)
+		is_dired = 1;
+
+	/* Status indicator */
 	vtputc(' ', wp);
-	++n;
+	if ((bp->b_flag & BFREADONLY) != 0) {
+		vtputs("RO", wp);
+	} else if ((bp->b_flag & BFCHG) != 0) {
+		vtputs("**", wp);
+	} else {
+		vtputs("--", wp);
+	}
+	vtputc(' ', wp);
+	n = 4;
+
+	/* Buffer name */
 	if (bp->b_bname[0] != '\0')
 		n += vtputs(&(bp->b_bname[0]), wp);
 	vtputc(' ', wp);
 	++n;
-	/* Mode list */
-	vtputc('(', wp);
-	++n;
-	for (md = 0; ; ) {
-		n += vtputs(bp->b_modes[md]->p_name, wp);
-		if (++md > bp->b_nmodes)
-			break;
-		vtputc('-', wp);
-		++n;
-	}
-	if (macrodef == TRUE)
-		n += vtputs("-def", wp);
-	if (globalwd == TRUE)
-		n += vtputs("-gwd", wp);
-	vtputc(')', wp);
-	++n;
-	/* Position: L行:C列 */
-	if (linenos && colnos)
-		len = snprintf(sl, sizeof(sl), " L%d:C%d", wp->w_dotline,
-		    getcolpos(wp));
-	else if (linenos)
-		len = snprintf(sl, sizeof(sl), " L%d", wp->w_dotline);
-	else if (colnos)
-		len = snprintf(sl, sizeof(sl), " C%d", getcolpos(wp));
-	else
-		len = 0;
-	if (len > 0 && len < (int)sizeof(sl))
-		n += vtputs(sl, wp);
 
-	/* Position percentage, right-aligned. */
-	{
+	/*
+	 * Dired Mode: minimal statusline, only show Dired indicator and cursor line/pct.
+	 * Omit Git, LF, Indent, and Syntax capsules entirely.
+	 */
+	if (is_dired) {
+		n += vtputs("[dired] ", wp);
+
+		char right_buf[32];
 		int total = 0;
 		struct line *lp;
 		for (lp = lforw(bp->b_headp); lp != bp->b_headp; lp = lforw(lp))
 			total++;
-		int pct;
-		if (total == 0)
-			pct = 100;
-		else if (wp->w_dotline >= total)
-			pct = 100;
-		else
-			pct = (wp->w_dotline * 100) / total;
-		char pctbuf[8];
-		len = snprintf(pctbuf, sizeof(pctbuf), "%3d%%", pct);
-		/* pad to right edge minus percentage width */
-		while (n < vt_rightcol - len) {
-			vtputc('-', wp);
+		int pct = (total == 0 || wp->w_dotline >= total) ? 100 : (wp->w_dotline * 100) / total;
+		int rlen = snprintf(right_buf, sizeof(right_buf), "Ln %d/%d (%d%%)",
+		    wp->w_dotline, total, pct);
+
+		while (n < vt_rightcol - rlen) {
+			vtputc(' ', wp);
 			++n;
 		}
-		n += vtputs(pctbuf, wp);
+		n += vtputs(right_buf, wp);
+		while (n < vt_rightcol) {
+			vtputc(' ', wp);
+			++n;
+		}
+		return;
 	}
 
-	while (n < vt_rightcol) {		/* Pad out.		 */
-		vtputc('-', wp);
+	/* Macro recording capsule: [REC] */
+	if (macrodef == TRUE) {
+		n += vtputs("[REC] ", wp);
+	}
+
+	/* Git Branch capsule: [git:main] */
+	char git_buf[40];
+	git_buf[0] = '\0';
+	char git_branch[32];
+	const char *cwd = bp->b_cwd[0] != '\0' ? bp->b_cwd : (bp->b_fname[0] != '\0' ? bp->b_fname : NULL);
+	if (get_git_branch(cwd, git_branch, sizeof(git_branch))) {
+		snprintf(git_buf, sizeof(git_buf), "[%s] ", git_branch);
+	}
+
+	/* Newline format capsule: [LF] or [CRLF] */
+	char nlbuf[16];
+	const char *nl_desc = "LF";
+	if (bp->b_nlchr && strcmp(bp->b_nlchr, "\r\n") == 0)
+		nl_desc = "CRLF";
+	else if (bp->b_nlchr && strcmp(bp->b_nlchr, "\r") == 0)
+		nl_desc = "CR";
+	snprintf(nlbuf, sizeof(nlbuf), "[%s] ", nl_desc);
+
+	/* Indent capsule: [Space4] or [Tab8] */
+	char indbuf[20];
+	if (bp->b_flag & BFNOTAB)
+		snprintf(indbuf, sizeof(indbuf), "[Space%d] ", bp->b_tabw);
+	else
+		snprintf(indbuf, sizeof(indbuf), "[Tab%d] ", bp->b_tabw);
+
+	/* Syntax / Mode capsule */
+	char langbuf[24];
+	const char *lang_name = (bp->b_syntax && bp->b_syntax->st_lang) ? bp->b_syntax->st_lang : NULL;
+	if (lang_name) {
+		snprintf(langbuf, sizeof(langbuf), "[%s] ", lang_name);
+	} else {
+		snprintf(langbuf, sizeof(langbuf), "(%s) ", bp->b_modes[0]->p_name);
+	}
+
+	/* Active Region / Selection Stats: [Sel: 5L, 120B] */
+	char sel_buf[32];
+	sel_buf[0] = '\0';
+	if (wp->w_markp != NULL && reg_active && wp == curwp) {
+		int sel_lines = abs(reg_end_line - reg_start_line) + 1;
+		int sel_bytes = 0;
+		struct line *slp;
+		int cur_l = 1;
+		for (slp = lforw(bp->b_headp); slp != bp->b_headp; slp = lforw(slp), cur_l++) {
+			if (cur_l >= reg_start_line && cur_l <= reg_end_line) {
+				int start_o = (cur_l == reg_start_line) ? reg_start_off : 0;
+				int end_o = (cur_l == reg_end_line) ? reg_end_off : llength(slp);
+				if (end_o > start_o)
+					sel_bytes += (end_o - start_o);
+			}
+		}
+		if (sel_lines > 1)
+			snprintf(sel_buf, sizeof(sel_buf), "[Sel: %dL, %dB] ", sel_lines, sel_bytes);
+		else
+			snprintf(sel_buf, sizeof(sel_buf), "[Sel: %dB] ", sel_bytes);
+	}
+
+	/* Right-aligned Position & Percentage: Ln 123, Col 56 (14%) */
+	char right_buf[48];
+	int total = 0;
+	struct line *lp;
+	for (lp = lforw(bp->b_headp); lp != bp->b_headp; lp = lforw(lp))
+		total++;
+	int pct;
+	if (total == 0 || wp->w_dotline >= total)
+		pct = 100;
+	else
+		pct = (wp->w_dotline * 100) / total;
+
+	int rlen = snprintf(right_buf, sizeof(right_buf), "Ln %d, Col %d (%d%%)",
+	    wp->w_dotline, getcolpos(wp) + 1, pct);
+
+	int sel_len = strlen(sel_buf);
+	int right_needed = rlen + sel_len + 1;
+
+	/*
+	 * Responsive Adaptive Layout:
+	 * Progressively drop capsules in priority order if screen width is tight.
+	 * Lowest priority dropped first:
+	 *   1. Indent capsule (e.g. [Spaces: 4])
+	 *   2. Git branch capsule
+	 *   3. Newline capsule (e.g. [LF])
+	 *   4. Syntax capsule
+	 */
+	int avail = vt_rightcol - n - right_needed;
+
+	/* 1. Git branch (highest priority middle capsule) */
+	if (git_buf[0] != '\0') {
+		int glen = strlen(git_buf);
+		if (avail >= glen + (int)strlen(langbuf)) {
+			n += vtputs(git_buf, wp);
+			avail -= glen;
+		}
+	}
+
+	/* 2. Syntax / Language */
+	if (langbuf[0] != '\0') {
+		int llen = strlen(langbuf);
+		if (avail >= llen) {
+			n += vtputs(langbuf, wp);
+			avail -= llen;
+		}
+	}
+
+	/* 3. Newline format [LF] */
+	if (nlbuf[0] != '\0') {
+		int nlen = strlen(nlbuf);
+		if (avail >= nlen + (int)strlen(indbuf)) {
+			n += vtputs(nlbuf, wp);
+			avail -= nlen;
+		}
+	}
+
+	/* 4. Indent style [Spaces: 4] (lowest priority, drops first) */
+	if (indbuf[0] != '\0') {
+		int ilen = strlen(indbuf);
+		if (avail >= ilen) {
+			n += vtputs(indbuf, wp);
+			avail -= ilen;
+		}
+	}
+
+	/* Clean, elegant fill with spaces */
+	while (n < vt_rightcol - rlen - sel_len - 1) {
+		vtputc(' ', wp);
+		++n;
+	}
+	if (sel_len > 0 && n + sel_len + rlen < vt_rightcol) {
+		n += vtputs(sel_buf, wp);
+	}
+	while (n < vt_rightcol - rlen) {
+		vtputc(' ', wp);
+		++n;
+	}
+	n += vtputs(right_buf, wp);
+
+	while (n < vt_rightcol) {
+		vtputc(' ', wp);
 		++n;
 	}
 }

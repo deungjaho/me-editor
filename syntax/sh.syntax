@@ -1,8 +1,33 @@
 # Shell syntax definition for me
 
-flags: dollar_vars
+flags: dollar_vars pair_squote
 
-# Keywords
+# Variable / Process Expansion (Key Intent for Shell)
+prefix: string $
+
+# Control flow & Process termination (rose/magenta)
+control: break
+control: case
+control: continue
+control: do
+control: done
+control: elif
+control: else
+control: esac
+control: fi
+control: for
+control: if
+control: in
+control: return
+control: then
+control: until
+control: while
+control: select
+control: exit
+control: trap
+control: exec
+
+# Shell Keywords & Builtins
 keyword: function
 keyword: alias
 keyword: export
@@ -14,8 +39,6 @@ keyword: let
 keyword: unset
 keyword: source
 keyword: eval
-keyword: exec
-keyword: trap
 keyword: set
 keyword: shift
 keyword: umask
@@ -41,84 +64,13 @@ keyword: shopt
 keyword: type
 keyword: ulimit
 
-# Control flow
-control: break
-control: case
-control: continue
-control: do
-control: done
-control: elif
-control: else
-control: esac
-control: fi
-control: for
-control: if
-control: in
-control: return
-control: then
-control: until
-control: while
-control: select
-control: exit
-
-# Builtins / common commands
-type: echo
-type: printf
-type: test
-type: cd
-type: pwd
-type: read
-type: cat
-type: grep
-type: sed
-type: awk
-type: cut
-type: sort
-type: uniq
-type: tr
-type: head
-type: tail
-type: wc
-type: find
-type: xargs
-type: tee
-type: dd
-type: tar
-type: cp
-type: mv
-type: rm
-type: mkdir
-type: rmdir
-type: ln
-type: chmod
-type: chown
-type: touch
-type: date
-type: sleep
-type: kill
-type: ps
-type: nohup
-type: time
-type: seq
-type: basename
-type: dirname
-type: realpath
-type: stat
-type: file
-type: which
-type: whereis
-type: locate
-type: install
-type: sudo
-type: su
-type: ssh
-type: scp
-type: rsync
-type: curl
-type: wget
-type: git
-type: make
-type: cmake
+# Shell Builtin Commands (neutral sand)
+keyword: test
+keyword: echo
+keyword: printf
+keyword: read
+keyword: cd
+keyword: pwd
 
 # Strings
 string: " "

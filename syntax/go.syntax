@@ -1,11 +1,27 @@
 # Go syntax definition for me
 
-# Keywords
-keyword: chan
+# Concurrency & Control flow (Key Intent for Go)
+control: break
+control: case
+control: chan
+control: continue
+control: default
+control: defer
+control: else
+control: fallthrough
+control: for
+control: go
+control: goto
+control: if
+control: panic
+control: recover
+control: return
+control: select
+control: switch
+
+# Declaration & Structuring Keywords
 keyword: const
-keyword: defer
 keyword: func
-keyword: go
 keyword: import
 keyword: interface
 keyword: map
@@ -16,58 +32,37 @@ keyword: type
 keyword: var
 keyword: iota
 
-# Control flow
-control: break
-control: case
-control: continue
-control: default
-control: else
-control: fallthrough
-control: for
-control: goto
-control: if
-control: return
-control: select
-control: switch
-
-# Built-in types
-type: bool
-type: byte
-type: complex64
-type: complex128
-type: float32
-type: float64
-type: int
+# Built-in exact width types & critical interfaces (highlighted)
 type: int8
 type: int16
 type: int32
 type: int64
-type: rune
-type: string
-type: uint
 type: uint8
 type: uint16
 type: uint32
 type: uint64
 type: uintptr
+type: complex64
+type: complex128
+type: float32
+type: float64
 type: error
 
-# Built-in functions
-type: append
-type: cap
-type: close
-type: complex
-type: copy
-type: delete
-type: imag
-type: len
-type: make
-type: new
-type: panic
-type: print
-type: println
-type: real
-type: recover
+# General types & utilities (keep as keyword/neutral to reduce noise)
+keyword: int
+keyword: uint
+keyword: rune
+keyword: byte
+keyword: string
+keyword: bool
+keyword: append
+keyword: cap
+keyword: close
+keyword: copy
+keyword: delete
+keyword: len
+keyword: make
+keyword: new
 
 # Strings
 string: " "

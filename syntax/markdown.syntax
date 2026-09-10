@@ -1,0 +1,7 @@
+# Markdown syntax definition for me
+
+flags: md_headers md_quotes md_lists no_numbers
+
+# Code spans and fenced code blocks
+string: ` `
+string: ``` ```

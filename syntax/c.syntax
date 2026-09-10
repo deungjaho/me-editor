@@ -1,6 +1,8 @@
 # C syntax definition for mg
 # Place in ~/.mg/syntax/c.syntax
 
+flags: fixed_types
+
 # Preprocessor directives
 # Conditional compilation = control flow (rose/magenta)
 control: #if
@@ -50,21 +52,8 @@ control: return
 control: switch
 control: while
 
-# Types
-type: char
-type: double
-type: float
-type: int
-type: long
-type: short
-type: signed
-type: unsigned
-type: void
-type: size_t
-type: ssize_t
-type: FILE
-type: ptrdiff_t
-type: wchar_t
+# Critical fixed-width & system boundary types (highlighted blue)
+# u8..u64, i8..i64, s8..s64 are automatically matched by flags: fixed_types
 type: int8_t
 type: int16_t
 type: int32_t
@@ -73,6 +62,24 @@ type: uint8_t
 type: uint16_t
 type: uint32_t
 type: uint64_t
+type: size_t
+type: ssize_t
+type: ptrdiff_t
+type: intptr_t
+type: uintptr_t
+
+# General types (neutral sand to reduce noise)
+keyword: char
+keyword: double
+keyword: float
+keyword: int
+keyword: long
+keyword: short
+keyword: signed
+keyword: unsigned
+keyword: void
+keyword: FILE
+keyword: wchar_t
 
 # Strings
 string: " "
@@ -85,4 +92,6 @@ block_comment: /* */
 # Constants
 constant: true
 constant: false
+constant: TRUE
+constant: FALSE
 constant: NULL

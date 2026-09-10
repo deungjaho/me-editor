@@ -243,6 +243,11 @@ static struct funmap functnames[] = {
 	{syntax_off, "syntax-off", 0},
 	{syntax_mode, "syntax-mode", 1},
 	{syntax_reload, "syntax-reload", 0},
+	{comment_line, "comment-line", 0},
+	{comment_line, "comment-dwim", 0},
+	{autopair_insert, "autopair-insert", 1},
+	{smart_backdel, "smart-backdel", 1},
+	{redo, "redo", 0},
 	{NULL, NULL, 0}
 };
 

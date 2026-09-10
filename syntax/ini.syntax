@@ -1,0 +1,21 @@
+# INI configuration syntax definition for me
+
+flags: ini_section ini_keys
+
+# Strings
+string: " "
+string: ' '
+
+# Comments
+line_comment: ;
+line_comment: #
+
+# Constants
+constant: true
+constant: false
+constant: on
+constant: off
+constant: yes
+constant: no
+constant: 1
+constant: 0

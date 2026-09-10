@@ -267,6 +267,42 @@ readin(char *fname)
 	/* auto-detect syntax highlighting */
 	curbp->b_syntax = syntax_detect(fname);
 
+	/* auto-detect indent style: analyze leading whitespace in first 60 lines */
+	{
+		int tab_count = 0, space2_count = 0, space4_count = 0;
+		struct line *scan_lp = bfirstlp(curbp);
+		int scount = 0;
+
+		while (scan_lp != curbp->b_headp && scount++ < 60) {
+			int tlen = llength(scan_lp);
+			if (tlen > 0) {
+				if (scan_lp->l_text[0] == '\t') {
+					tab_count++;
+				} else if (scan_lp->l_text[0] == ' ') {
+					int sp = 0;
+					while (sp < tlen && scan_lp->l_text[sp] == ' ')
+						sp++;
+					if (sp >= 4 && sp % 4 == 0)
+						space4_count++;
+					else if (sp >= 2 && sp % 2 == 0)
+						space2_count++;
+				}
+			}
+			scan_lp = lforw(scan_lp);
+		}
+
+		if (tab_count > space2_count && tab_count > space4_count) {
+			curbp->b_flag &= ~BFNOTAB;
+			curbp->b_tabw = 4;
+		} else if (space2_count > 0 || space4_count > 0) {
+			curbp->b_flag |= BFNOTAB;
+			if (space2_count > space4_count)
+				curbp->b_tabw = 2;
+			else
+				curbp->b_tabw = 4;
+		}
+	}
+
 	if (startrow) {
 		gotoline(FFARG, startrow);
 		startrow = 0;
@@ -565,7 +601,7 @@ filewrite(int f, int n)
 /*
  * Save the contents of the current buffer back into its associated file.
  */
-static int	makebackup = TRUE;
+static int	makebackup = FALSE;
 
 int
 filesave(int f, int n)

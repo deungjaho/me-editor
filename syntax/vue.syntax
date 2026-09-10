@@ -1,8 +1,12 @@
 # Vue syntax definition for me
 # Tag names are auto-detected (flags: tags).
-# This file covers Vue-specific APIs and JS/TS keywords.
 
 flags: tags
+
+# Template Directives & Event Bindings (Key Intent for Vue Templates)
+prefix: control v-
+prefix: control @
+prefix: keyword :
 
 # Vue Composition API
 keyword: ref
@@ -93,25 +97,27 @@ control: throw
 control: try
 control: while
 
-# Types / builtins
-type: Array
-type: Boolean
-type: Date
-type: Error
-type: Function
-type: Number
-type: Object
-type: Promise
-type: RegExp
-type: String
-type: Symbol
-type: Map
-type: Set
-type: WeakMap
-type: WeakSet
-type: console
-type: JSON
-type: Math
+# Declarations & general objects (neutral sand to eliminate noise)
+keyword: Array
+keyword: Boolean
+keyword: Date
+keyword: Error
+keyword: Function
+keyword: Number
+keyword: Object
+keyword: Promise
+keyword: RegExp
+keyword: String
+keyword: Symbol
+keyword: Map
+keyword: Set
+keyword: WeakMap
+keyword: WeakSet
+keyword: console
+keyword: JSON
+keyword: Math
+
+# Primitive types (highlighted blue)
 type: undefined
 
 # Strings

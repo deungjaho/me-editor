@@ -26,7 +26,8 @@ enum {
     SCOLOR_NUMBER   = 21,   /* #9EEDE1 cyan (data values)  */
     SCOLOR_PREPROC  = 22,   /* #BDB89E sand                */
     SCOLOR_CONTROL  = 23,   /* #FF6B9D rose/magenta        */
-    SCOLOR_MAX      = 24,
+    SCOLOR_RULER    = 24,   /* #3B4252 subtle dark gray vertical ruler line */
+    SCOLOR_MAX      = 25,
 };
 
 /*
@@ -61,11 +62,22 @@ enum {
     SRULE_TAG,
     SRULE_CHAR_LIT,
     SRULE_CSS_PROP,
+    SRULE_PREFIX,
+    SRULE_INI_SECTION,
+    SRULE_MD_HEADER,
+    SRULE_MD_QUOTE,
+    SRULE_MD_LIST,
 };
 
 /* ---- word syntax flags ---- */
 #define SYNFLAG_DOLLAR_VARS  0x01   /* Shell/PHP: $ is a word start/char */
 #define SYNFLAG_HYPHEN_WORDS 0x02   /* Elisp: - is a word char           */
+#define SYNFLAG_JSON_KEYS    0x04   /* JSON: strings followed by ':' are keys */
+#define SYNFLAG_INI_KEYS     0x08   /* INI/TOML: words followed by '=' are keys */
+#define SYNFLAG_FIXED_TYPES  0x10   /* Match fixed width types: u8..u256, i8..i128, s8..s64, f32/f64 */
+#define SYNFLAG_NO_NUMBERS   0x20   /* Disable number literal highlighting (e.g. for Markdown) */
+#define SYNFLAG_PAIR_SQUOTE  0x40   /* Auto-pair single quote ' */
+#define SYNFLAG_NO_AUTOPAIR  0x80   /* Disable auto-pairing in this mode */
 
 /* ---- data structures ---- */
 
@@ -106,7 +118,9 @@ struct syntax_table {
     struct syn_kw       *st_kw[SYN_HASHSIZE]; /* keyword hash */
     char                *st_block_start;   /* block comment start */
     char                *st_block_end;     /* block comment end */
+    char                *st_line_comment;   /* line comment prefix, e.g. "//", "#", ";" */
     int                  st_flags;         /* SYNFLAG_* bitmask */
+    struct syntax_table *st_next;          /* singly linked list of loaded tables */
 };
 
 /* ---- functions ---- */
@@ -114,6 +128,8 @@ struct syntax_table {
 struct syntax_table *syntax_load(const char *path);
 void                 syntax_free(struct syntax_table *st);
 struct syntax_table *syntax_find(const char *lang);
+void                 syntax_sync_lookback(struct buffer *bp, struct line *target_lp);
+void                 syntax_match_dired(struct line *lp, char *hue, int ncol);
 void                 syntax_match_line(struct line *prev, struct line *lp,
                                        char *hue, int ncol);
 

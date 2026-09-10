@@ -1,0 +1,18 @@
+# TOML configuration syntax definition for me
+
+flags: ini_section ini_keys
+
+# Strings (single, double and triple-quoted)
+string: """ """
+string: ''' '''
+string: " "
+string: ' '
+
+# Comments
+line_comment: #
+
+# Constants
+constant: true
+constant: false
+constant: inf
+constant: nan

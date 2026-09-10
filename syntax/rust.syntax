@@ -1,11 +1,26 @@
 # Rust syntax definition for me
 
-flags: lifetime
+flags: lifetime fixed_types
 
-# Keywords
+# Control flow, State Mutation & Async (Key Intent for Rust)
+control: break
+control: continue
+control: else
+control: for
+control: if
+control: loop
+control: match
+control: return
+control: while
+control: await
+control: async
+control: yield
+control: try
+control: mut
+control: unsafe
+
+# Declarations & Structure Keywords
 keyword: as
-keyword: async
-keyword: await
 keyword: box
 keyword: const
 keyword: crate
@@ -18,7 +33,6 @@ keyword: in
 keyword: let
 keyword: mod
 keyword: move
-keyword: mut
 keyword: pub
 keyword: ref
 keyword: self
@@ -28,93 +42,14 @@ keyword: struct
 keyword: super
 keyword: trait
 keyword: type
-keyword: unsafe
 keyword: use
 keyword: where
 
-# Control flow
-control: break
-control: continue
-control: else
-control: for
-control: if
-control: loop
-control: match
-control: return
-control: while
-
-# Types
+# Core Primitive Non-Numeric Types (Numeric u8..u128, i8..i128 handled by fixed_types)
 type: bool
 type: char
-type: i8
-type: i16
-type: i32
-type: i64
-type: i128
-type: isize
-type: u8
-type: u16
-type: u32
-type: u64
-type: u128
 type: usize
-type: f32
-type: f64
-type: str
-type: String
-type: Vec
-type: Box
-type: Rc
-type: Arc
-type: RefCell
-type: RefMut
-type: Ref
-type: Cell
-type: Mutex
-type: RwLock
-type: Option
-type: Result
-type: Some
-type: Ok
-type: Err
-type: None
-type: HashMap
-type: HashSet
-type: BTreeMap
-type: BTreeSet
-type: VecDeque
-type: LinkedList
-type: BinaryHeap
-type: Slice
-type: Range
-type: RangeInclusive
-type: Cow
-type: Duration
-type: Instant
-type: SystemTime
-type: PhantomData
-type: Default
-type: Clone
-type: Copy
-type: Debug
-type: Display
-type: Eq
-type: PartialEq
-type: Ord
-type: PartialOrd
-type: Hash
-type: Iterator
-type: IntoIterator
-type: FromIterator
-type: Collect
-type: Send
-type: Sync
-type: Sized
-type: Unpin
-type: Drop
-type: Fn
-type: FnMut
-type: FnOnce
+type: isize
 
 # Strings
 string: " "

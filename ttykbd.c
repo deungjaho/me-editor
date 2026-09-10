@@ -60,6 +60,37 @@ ttykeymapinit(void)
 	if (key_f1)
 		dobindkey(fundamental_map, "help-help", key_f1);
 
+	/* Bind auto-pair delimiters on fundamental map */
+	dobindkey(fundamental_map, "autopair-insert", "(");
+	dobindkey(fundamental_map, "autopair-insert", "[");
+	dobindkey(fundamental_map, "autopair-insert", "{");
+	dobindkey(fundamental_map, "autopair-insert", "\"");
+	dobindkey(fundamental_map, "autopair-insert", "'");
+	dobindkey(fundamental_map, "autopair-insert", ")");
+	dobindkey(fundamental_map, "autopair-insert", "]");
+	dobindkey(fundamental_map, "autopair-insert", "}");
+	dobindkey(fundamental_map, "smart-backdel", "\\^H");
+	dobindkey(fundamental_map, "smart-backdel", "\\^?");
+
+	/* Cmd-/ sends ESC / or CSI sequences depending on terminal; bind M-/ and Alt-; */
+	dobindkey(fundamental_map, "comment-line", "\\e;");
+	dobindkey(fundamental_map, "comment-line", "\\e/");
+	dobindkey(fundamental_map, "comment-line", "\\e[106;9u"); /* Kitty / CSI u Cmd-/ */
+	dobindkey(fundamental_map, "comment-line", "\\e[47;9u");  /* CSI u Cmd-/ */
+	dobindkey(fundamental_map, "comment-line", "\\e[59;3u");  /* Alt-; in CSI u */
+
+	/* Ctrl-Shift-/ sends CSI u with shift modifier (e.g. \e[47;6u or \e[31;2u or \e[47;2u); bind to redo */
+	dobindkey(fundamental_map, "redo", "\\e[47;6u");
+	dobindkey(fundamental_map, "redo", "\\e[47;2u");
+	dobindkey(fundamental_map, "redo", "\\e[31;6u");
+	dobindkey(fundamental_map, "redo", "\\e[63;6u"); /* ? with Ctrl */
+	dobindkey(fundamental_map, "redo", "\\e[63;2u"); /* ? with Shift */
+	dobindkey(fundamental_map, "redo", "\\e_");     /* M-_ (standard Emacs redo) */
+
+	/* Bind NBSP (Option-Space on macOS Cocoa terminal) to set-mark-command */
+	dobindkey(fundamental_map, "set-mark-command", "\xc2\xa0");
+	dobindkey(fundamental_map, "set-mark-command", "\\e ");
+
 	if ((cp = getenv("TERM")) != NULL &&
 	    (ffp = startupfile(cp, NULL, file, sizeof(file))) != NULL) {
 		if (load(ffp, file) != TRUE)

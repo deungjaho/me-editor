@@ -391,6 +391,7 @@ int		 ask_makedir(void);
 
 /* dired.c */
 struct buffer	*dired_(char *);
+int		 dired(int, int);
 int		 dired_jump(int, int);
 int		 view_file(int, int);
 int 		 do_dired(char *);
@@ -687,7 +688,11 @@ void		 ttykeymapinit(void);
 void		 ttykeymaptidy(void);
 
 /* match.c X */
+int		 autopair_insert(int, int);
+int		 smart_backdel(int, int);
+int		 find_match_paren(struct line *, int, struct line **, int *, int *);
 int		 showmatch(int, int);
+int		 comment_line(int, int);
 
 /* version.c X */
 int		 showversion(int, int);
@@ -731,6 +736,7 @@ int		 undo_add_delete(struct line *, int, int, int);
 int		 undo_boundary_enable(int, int);
 int		 undo_add_change(struct line *, int, int);
 int		 undo(int, int);
+int		 redo(int, int);
 
 /* autoexec.c X */
 int		 auto_execute(int, int);

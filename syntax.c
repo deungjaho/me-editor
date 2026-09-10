@@ -22,8 +22,7 @@
 
 /* ---- globals ---- */
 
-static struct syntax_table *g_tables[16];  /* loaded tables */
-static int                  g_ntables = 0;
+static struct syntax_table *g_tables = NULL;  /* loaded tables linked list */
 
 /* ---- keyword hash ---- */
 
@@ -147,12 +146,23 @@ match_rule_string(struct syntax_table *st, const struct syn_rule *rule,
     int slen = strlen(rule->sr_start);
     *color = rule->sr_color;
 
-    if (slen == 1) {
-        int end = find_quote_end(text, pos, textlen, rule->sr_start[0]);
+    if (slen == 1 || (slen == 2 && rule->sr_start[0] == 'b' && (rule->sr_start[1] == '"' || rule->sr_start[1] == '\''))) {
+        char quote = (slen == 1) ? rule->sr_start[0] : rule->sr_start[1];
+        int end = find_quote_end(text, pos + (slen - 1), textlen, quote);
         *match_len = end - pos;
-        if (rule->sr_start[0] == '`' && pos + *match_len >= textlen &&
+        if (quote == '`' && pos + *match_len >= textlen &&
             !(pos + *match_len > 0 && text[pos + *match_len - 1] == '`'))
             *state = SYNSTATE_IN_BACKTICK;
+
+        /* JSON keys detection: if string is followed by ':', mark as key */
+        if ((st->st_flags & SYNFLAG_JSON_KEYS) && rule->sr_start[0] == '"') {
+            int k = end;
+            while (k < textlen && (text[k] == ' ' || text[k] == '\t'))
+                k++;
+            if (k < textlen && text[k] == ':')
+                *color = SCOLOR_KEYWORD;
+        }
+
         return 1;
     }
 
@@ -209,6 +219,10 @@ match_rule_lifetime(struct syntax_table *st, const struct syn_rule *rule,
     while (end < textlen && is_word_char((unsigned char)text[end]))
         end++;
 
+    /* Rust lifetimes are short identifiers like 'a, 'de, 'static (rarely exceed 16 chars) */
+    if (end - pos > 16)
+        return 0;
+
     /* If closing quote exists right after identifier (e.g. 'foo'), it's a string */
     if (end < textlen && text[end] == '\'')
         return 0;
@@ -227,6 +241,10 @@ match_rule_annotation(struct syntax_table *st, const struct syn_rule *rule,
     (void)state;
     if (text[pos] != '@' || pos + 1 >= textlen ||
         !is_word_start((unsigned char)text[pos + 1]))
+        return 0;
+
+    /* Prevent matching emails like user@domain.com: left char must not be an identifier char */
+    if (pos > 0 && is_word_char((unsigned char)text[pos - 1]))
         return 0;
 
     int end = pos + 1;
@@ -294,6 +312,163 @@ match_rule_char_lit(struct syntax_table *st, const struct syn_rule *rule,
     return 1;
 }
 
+static int
+match_rule_prefix(struct syntax_table *st, const struct syn_rule *rule,
+                  const char *text, int pos, int textlen,
+                  int *match_len, int *color, int *state)
+{
+    (void)state;
+    if (!match_at(text, pos, textlen, rule->sr_start))
+        return 0;
+
+    int slen = strlen(rule->sr_start);
+    int end = pos + slen;
+
+    /* Special shell support: ${VAR} or $(cmd) */
+    if (slen == 1 && rule->sr_start[0] == '$' && end < textlen) {
+        if (text[end] == '{') {
+            end++;
+            while (end < textlen && text[end] != '}')
+                end++;
+            if (end < textlen && text[end] == '}')
+                end++;
+            *color = rule->sr_color;
+            *match_len = end - pos;
+            return 1;
+        } else if (text[end] == '(') {
+            end++;
+            while (end < textlen && text[end] != ')')
+                end++;
+            if (end < textlen && text[end] == ')')
+                end++;
+            *color = rule->sr_color;
+            *match_len = end - pos;
+            return 1;
+        }
+    }
+
+    /* Scan trailing identifier characters */
+    while (end < textlen && is_word_char_ext((unsigned char)text[end], st->st_flags))
+        end++;
+
+    /* If prefix only matched itself and nothing followed, still color if it was non-empty */
+    *color = rule->sr_color;
+    *match_len = end - pos;
+    return 1;
+}
+
+static int
+match_rule_ini_section(struct syntax_table *st, const struct syn_rule *rule,
+                       const char *text, int pos, int textlen,
+                       int *match_len, int *color, int *state)
+{
+    (void)st;
+    (void)state;
+    if (text[pos] != '[')
+        return 0;
+
+    /* Check if this is the start of the line or only preceded by whitespace */
+    int k;
+    for (k = 0; k < pos; k++) {
+        if (text[k] != ' ' && text[k] != '\t')
+            return 0;
+    }
+
+    int end = pos + 1;
+    while (end < textlen && text[end] != ']')
+        end++;
+
+    if (end < textlen && text[end] == ']') {
+        *color = rule->sr_color;
+        *match_len = (end + 1) - pos;
+        return 1;
+    }
+    return 0;
+}
+
+static int
+match_rule_md_header(struct syntax_table *st, const struct syn_rule *rule,
+                     const char *text, int pos, int textlen,
+                     int *match_len, int *color, int *state)
+{
+    (void)st;
+    (void)state;
+    /* Markdown headers (# ## ### ...) only at start of line (or after spaces) */
+    if (text[pos] != '#')
+        return 0;
+
+    int k;
+    for (k = 0; k < pos; k++) {
+        if (text[k] != ' ' && text[k] != '\t')
+            return 0;
+    }
+
+    /* Entire line becomes header color */
+    *color = rule->sr_color;
+    *match_len = textlen - pos;
+    return 1;
+}
+
+static int
+match_rule_md_quote(struct syntax_table *st, const struct syn_rule *rule,
+                    const char *text, int pos, int textlen,
+                    int *match_len, int *color, int *state)
+{
+    (void)st;
+    (void)state;
+    /* Blockquote (>) only at start of line (or after spaces) */
+    if (text[pos] != '>')
+        return 0;
+
+    int k;
+    for (k = 0; k < pos; k++) {
+        if (text[k] != ' ' && text[k] != '\t')
+            return 0;
+    }
+
+    *color = rule->sr_color;
+    *match_len = textlen - pos;
+    return 1;
+}
+
+static int
+match_rule_md_list(struct syntax_table *st, const struct syn_rule *rule,
+                   const char *text, int pos, int textlen,
+                   int *match_len, int *color, int *state)
+{
+    (void)st;
+    (void)state;
+    (void)rule;
+    /* Bullet or numbered list at line start: '- ', '* ', '+ ', '1. ', '12. ' */
+    int k;
+    for (k = 0; k < pos; k++) {
+        if (text[k] != ' ' && text[k] != '\t')
+            return 0;
+    }
+
+    unsigned char c = (unsigned char)text[pos];
+    if ((c == '-' || c == '*' || c == '+') && pos + 1 < textlen &&
+        (text[pos + 1] == ' ' || text[pos + 1] == '\t')) {
+        *color = SCOLOR_CONTROL;
+        *match_len = 1;
+        return 1;
+    }
+
+    if (c >= '0' && c <= '9') {
+        int end = pos;
+        while (end < textlen && text[end] >= '0' && text[end] <= '9')
+            end++;
+        if (end < textlen && text[end] == '.' && end + 1 < textlen &&
+            (text[end + 1] == ' ' || text[end + 1] == '\t')) {
+            *color = SCOLOR_CONTROL;
+            *match_len = (end + 1) - pos;
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
 static void
 syn_rule_add(struct syntax_table *st, int type, int color,
              char *start, char *end, syn_rule_match_fn fn)
@@ -355,10 +530,35 @@ syntax_load(const char *path)
                 syn_rule_add(st, SRULE_STRING, SCOLOR_STRING,
                              s, e ? e : strdup(s), match_rule_string);
             }
+        } else if (strncmp(p, "prefix:", 7) == 0) {
+            char *spec = skip_ws(p + 7);
+            int color = SCOLOR_CONTROL;
+            if (strncmp(spec, "control", 7) == 0) {
+                color = SCOLOR_CONTROL;
+                spec = skip_ws(spec + 7);
+            } else if (strncmp(spec, "keyword", 7) == 0) {
+                color = SCOLOR_KEYWORD;
+                spec = skip_ws(spec + 7);
+            } else if (strncmp(spec, "type", 4) == 0) {
+                color = SCOLOR_TYPE;
+                spec = skip_ws(spec + 4);
+            } else if (strncmp(spec, "string", 6) == 0) {
+                color = SCOLOR_STRING;
+                spec = skip_ws(spec + 6);
+            } else if (strncmp(spec, "comment", 7) == 0) {
+                color = SCOLOR_COMMENT;
+                spec = skip_ws(spec + 7);
+            }
+            if (*spec != '\0') {
+                syn_rule_add(st, SRULE_PREFIX, color,
+                             strdup(spec), NULL, match_rule_prefix);
+            }
         } else if (strncmp(p, "line_comment:", 13) == 0) {
             char *s, *e;
             parse_delim(p + 13, &s, &e);
             if (s) {
+                if (st->st_line_comment == NULL)
+                    st->st_line_comment = strdup(s);
                 syn_rule_add(st, SRULE_LINE_COMMENT, SCOLOR_COMMENT,
                              s, NULL, match_rule_line_comment);
             }
@@ -397,6 +597,30 @@ syntax_load(const char *path)
                     st->st_flags |= SYNFLAG_HYPHEN_WORDS;
                 } else if (strcmp(tok, "dollar_vars") == 0) {
                     st->st_flags |= SYNFLAG_DOLLAR_VARS;
+                } else if (strcmp(tok, "json_keys") == 0) {
+                    st->st_flags |= SYNFLAG_JSON_KEYS;
+                } else if (strcmp(tok, "ini_section") == 0) {
+                    syn_rule_add(st, SRULE_INI_SECTION, SCOLOR_CONTROL,
+                                 strdup("["), NULL, match_rule_ini_section);
+                } else if (strcmp(tok, "ini_keys") == 0) {
+                    st->st_flags |= SYNFLAG_INI_KEYS;
+                } else if (strcmp(tok, "md_headers") == 0) {
+                    syn_rule_add(st, SRULE_MD_HEADER, SCOLOR_CONTROL,
+                                 strdup("#"), NULL, match_rule_md_header);
+                } else if (strcmp(tok, "md_quotes") == 0) {
+                    syn_rule_add(st, SRULE_MD_QUOTE, SCOLOR_COMMENT,
+                                 strdup(">"), NULL, match_rule_md_quote);
+                } else if (strcmp(tok, "md_lists") == 0) {
+                    syn_rule_add(st, SRULE_MD_LIST, SCOLOR_CONTROL,
+                                 strdup("-"), NULL, match_rule_md_list);
+                } else if (strcmp(tok, "fixed_types") == 0) {
+                    st->st_flags |= SYNFLAG_FIXED_TYPES;
+                } else if (strcmp(tok, "no_numbers") == 0) {
+                    st->st_flags |= SYNFLAG_NO_NUMBERS;
+                } else if (strcmp(tok, "pair_squote") == 0) {
+                    st->st_flags |= SYNFLAG_PAIR_SQUOTE;
+                } else if (strcmp(tok, "no_autopair") == 0) {
+                    st->st_flags |= SYNFLAG_NO_AUTOPAIR;
                 }
                 tok = strtok(NULL, " \t");
             }
@@ -404,9 +628,9 @@ syntax_load(const char *path)
     }
     fclose(fp);
 
-    /* register in global table */
-    if (g_ntables < 15)
-        g_tables[g_ntables++] = st;
+    /* register in global table (linked list) */
+    st->st_next = g_tables;
+    g_tables = st;
 
     return st;
 }
@@ -437,16 +661,19 @@ syntax_free(struct syntax_table *st)
     }
     free(st->st_block_start);
     free(st->st_block_end);
+    free(st->st_line_comment);
+    free(st->st_lang);
     free(st);
 }
 
 struct syntax_table *
 syntax_find(const char *lang)
 {
-    int i;
-    for (i = 0; i < g_ntables; i++) {
-        if (g_tables[i]->st_lang && strcmp(g_tables[i]->st_lang, lang) == 0)
-            return g_tables[i];
+    struct syntax_table *curr = g_tables;
+    while (curr != NULL) {
+        if (curr->st_lang && strcmp(curr->st_lang, lang) == 0)
+            return curr;
+        curr = curr->st_next;
     }
     return NULL;
 }
@@ -481,6 +708,30 @@ is_word_start_ext(unsigned char c, int flags)
 {
     return is_word_start(c) ||
            ((flags & SYNFLAG_DOLLAR_VARS) && c == '$');
+}
+
+static int
+is_fixed_type(const char *word, int len)
+{
+    /* Match fixed width types like:
+     * u8, u16, u32, u64, u128, u256
+     * i8, i16, i32, i64, i128
+     * s8, s16, s32, s64 (Jai signed integers)
+     * f32, f64
+     */
+    if (len < 2 || len > 5)
+        return 0;
+
+    char prefix = word[0];
+    if (prefix != 'u' && prefix != 'i' && prefix != 's' && prefix != 'f')
+        return 0;
+
+    int i;
+    for (i = 1; i < len; i++) {
+        if (word[i] < '0' || word[i] > '9')
+            return 0;
+    }
+    return 1;
 }
 
 static int
@@ -526,6 +777,106 @@ find_quote_end(const char *text, int pos, int textlen, char quote)
     return textlen;  /* unclosed — color to EOL */
 }
 
+/* ---- dired highlighter ---- */
+
+void
+syntax_match_dired(struct line *lp, char *hue, int ncol)
+{
+    const char *text = lp->l_text;
+    int textlen = llength(lp);
+
+    memset(hue, SCOLOR_DEFAULT, textlen);
+
+    /* Skip leading spaces to find permission chars */
+    int pstart = 0;
+    while (pstart < textlen && text[pstart] == ' ')
+        pstart++;
+
+    /* Line starting with permission chars: -dlcrwxst... */
+    if (pstart + 10 <= textlen &&
+        (text[pstart] == '-' || text[pstart] == 'd' ||
+         text[pstart] == 'l' || text[pstart] == 'c' ||
+         text[pstart] == 'b' || text[pstart] == 'p' ||
+         text[pstart] == 's')) {
+        int is_dir = (text[pstart] == 'd');
+        int is_link = (text[pstart] == 'l');
+
+        /* permission field: 10 chars from pstart */
+        memset(hue + pstart, SCOLOR_COMMENT, 10);
+
+        /* find filename: 9th space-delimited field */
+        int off = 0, field = 0, name_start = -1;
+        while (off < textlen) {
+            if (text[off] == ' ') {
+                if (++field == 9) {
+                    off++;
+                    while (off < textlen && text[off] == ' ')
+                        off++;
+                    name_start = off;
+                    break;
+                }
+                while (off < textlen && text[off] == ' ')
+                    off++;
+            } else {
+                off++;
+            }
+        }
+        if (name_start >= 0 && name_start < textlen) {
+            if (is_dir)
+                memset(hue + name_start, SCOLOR_CONTROL, textlen - name_start);
+            else if (is_link)
+                memset(hue + name_start, SCOLOR_STRING, textlen - name_start);
+            else
+                memset(hue + name_start, SCOLOR_DEFAULT, textlen - name_start);
+        }
+    }
+}
+
+/* ---- sync lookback helper ---- */
+
+void
+syntax_sync_lookback(struct buffer *bp, struct line *target_lp)
+{
+    struct line *curr;
+    int count = 0;
+    int max_lookback = 1000;  /* Expanded lookback depth for large multi-line comment blocks */
+    struct line **stack = NULL;
+    int stack_cap = 0;
+    int top = 0;
+
+    if (bp == NULL || bp->b_syntax == NULL || target_lp == NULL)
+        return;
+
+    curr = lback(target_lp);
+    while (curr != bp->b_headp && count < max_lookback) {
+        if (curr->l_synstate != SYNSTATE_DEFAULT)
+            break;  /* Found a known state anchor */
+
+        if (top >= stack_cap) {
+            int new_cap = stack_cap ? stack_cap * 2 : 128;
+            struct line **new_stack = realloc(stack, new_cap * sizeof(struct line *));
+            if (!new_stack)
+                break;
+            stack = new_stack;
+            stack_cap = new_cap;
+        }
+        stack[top++] = curr;
+        curr = lback(curr);
+        count++;
+    }
+
+    /* Fast-forward scan through the stack to compute line states */
+    struct line *prev = curr;
+    while (top > 0) {
+        struct line *lp = stack[--top];
+        char dummy_hue[1];
+        syntax_match_line(prev, lp, dummy_hue, 0);
+        prev = lp;
+    }
+    if (stack)
+        free(stack);
+}
+
 /* ---- main tokenizer ---- */
 
 void
@@ -539,62 +890,9 @@ syntax_match_line(struct line *prev, struct line *lp,
     text = lp->l_text;
     textlen = llength(lp);
 
-    /* default color for all bytes */
-    memset(hue, SCOLOR_DEFAULT, ncol > textlen ? ncol : textlen);
-
-    /* ---- dired mode: highlight ls -al output ---- */
-    if (curbp && curbp->b_nmodes >= 1 && curbp->b_modes[1] != NULL &&
-        !(curbp->b_flag & BFSYNOFF)) {
-        const char *mn = curbp->b_modes[1]->p_name;
-        if (mn && strcmp(mn, "dired") == 0) {
-            /* Skip leading spaces to find permission chars */
-            int pstart = 0;
-            while (pstart < textlen && text[pstart] == ' ')
-                pstart++;
-            /* Line starting with permission chars: -dlcrwxst... */
-            if (pstart + 10 <= textlen &&
-                (text[pstart] == '-' || text[pstart] == 'd' ||
-                text[pstart] == 'l' || text[pstart] == 'c' ||
-                text[pstart] == 'b' || text[pstart] == 'p' ||
-                text[pstart] == 's')) {
-                int is_dir = (text[pstart] == 'd');
-                int is_link = (text[pstart] == 'l');
-                /* permission field: 10 chars from pstart */
-                memset(hue + pstart, SCOLOR_COMMENT, 10);
-                /* find filename: 9th space-delimited field */
-                {
-                    int off = 0, field = 0, name_start = -1;
-                    while (off < textlen) {
-                        if (text[off] == ' ') {
-                            if (++field == 9) {
-                                off++;
-                                while (off < textlen && text[off] == ' ')
-                                    off++;
-                                name_start = off;
-                                break;
-                            }
-                            while (off < textlen && text[off] == ' ')
-                                off++;
-                        } else {
-                            off++;
-                        }
-                    }
-                    if (name_start >= 0 && name_start < textlen) {
-                        if (is_dir)
-                            memset(hue + name_start, SCOLOR_CONTROL,
-                                   textlen - name_start);
-                        else if (is_link)
-                            memset(hue + name_start, SCOLOR_STRING,
-                                   textlen - name_start);
-                        else
-                            memset(hue + name_start, SCOLOR_DEFAULT,
-                                   textlen - name_start);
-                    }
-                }
-            }
-            return;
-        }
-    }
+    /* default color for all bytes (entire line, not just visible width) */
+    if (ncol > 0)
+        memset(hue, SCOLOR_DEFAULT, textlen);
 
     st = curbp ? curbp->b_syntax : NULL;
     if (st == NULL || (curbp->b_flag & BFSYNOFF))
@@ -693,11 +991,27 @@ syntax_match_line(struct line *prev, struct line *lp,
         }
 
         /* ---- number ---- */
-        if (c >= '0' && c <= '9') {
+        if (c >= '0' && c <= '9' && !(st->st_flags & SYNFLAG_NO_NUMBERS)) {
             int end = i;
-            while (end < textlen && (is_word_char((unsigned char)text[end]) ||
-                   text[end] == '.'))
-                end++;
+            while (end < textlen) {
+                unsigned char ch = (unsigned char)text[end];
+                if (ch == '.') {
+                    /* If followed by another '.', it's a range operator '..' (e.g. 0..n); stop here */
+                    if (end + 1 < textlen && text[end + 1] == '.')
+                        break;
+                    /* A single '.' is only part of a float if followed by a digit */
+                    if (end + 1 < textlen && text[end + 1] >= '0' && text[end + 1] <= '9') {
+                        end++;
+                        continue;
+                    }
+                    break;
+                }
+                if (is_word_char(ch)) {
+                    end++;
+                    continue;
+                }
+                break;
+            }
             memset(hue + i, SCOLOR_NUMBER, end - i);
             i = end;
             continue;
@@ -729,12 +1043,43 @@ syntax_match_line(struct line *prev, struct line *lp,
                 end++;
             int wlen = end - i;
             int color = kw_lookup(st, text + i, wlen);
+
+            /* Dot-property demotion: words preceded by '.' (e.g. obj.string()) are member accesses, not types */
+            if (color == SCOLOR_TYPE && i > 0 && text[i - 1] == '.') {
+                if (i == 1 || text[i - 2] != '.')
+                    color = SCOLOR_DEFAULT;
+            }
+
             if (color != SCOLOR_DEFAULT) {
                 memset(hue + i, color, wlen);
+            } else if ((st->st_flags & SYNFLAG_FIXED_TYPES) &&
+                       is_fixed_type(text + i, wlen)) {
+                /* Exact fixed width types (e.g. u64, u128, i64, s64, f64) unless preceded by '.' */
+                if (!(i > 0 && text[i - 1] == '.' && (i == 1 || text[i - 2] != '.')))
+                    memset(hue + i, SCOLOR_TYPE, wlen);
             } else if ((st->st_flags & SRULE_CSS_PROP) &&
                        end < textlen && text[end] == ':') {
-                /* CSS property name: word followed by ':' */
-                memset(hue + i, SCOLOR_CONTROL, wlen);
+                /* CSS property name: only consider if preceded by indentation or ';' (not after selectors like a:hover) */
+                int is_prop = 0;
+                int k;
+                for (k = 0; k < i; k++) {
+                    if (text[k] != ' ' && text[k] != '\t') {
+                        is_prop = (text[k] == ';' || text[k] == '{');
+                        break;
+                    }
+                }
+                /* If line starts with indentation, it's inside a rule block */
+                if (i > 0 && (text[0] == ' ' || text[0] == '\t'))
+                    is_prop = 1;
+                if (is_prop && !(end + 1 < textlen && text[end + 1] == ':'))
+                    memset(hue + i, SCOLOR_CONTROL, wlen);
+            } else if ((st->st_flags & SYNFLAG_INI_KEYS)) {
+                /* INI/TOML key: word followed by '=' */
+                int k = end;
+                while (k < textlen && (text[k] == ' ' || text[k] == '\t'))
+                    k++;
+                if (k < textlen && text[k] == '=')
+                    memset(hue + i, SCOLOR_KEYWORD, wlen);
             }
             i = end;
             continue;
@@ -812,12 +1157,21 @@ int
 syntax_reload(int f, int n)
 {
     struct buffer *bp;
-    int i;
+    struct syntax_table *curr, *next;
 
-    /* free all cached tables */
-    for (i = 0; i < g_ntables; i++)
-        syntax_free(g_tables[i]);
-    g_ntables = 0;
+    /* First clear all dangling syntax pointers from all active buffers */
+    for (bp = bheadp; bp != NULL; bp = bp->b_bufp) {
+        bp->b_syntax = NULL;
+    }
+
+    /* free all cached tables in linked list */
+    curr = g_tables;
+    while (curr != NULL) {
+        next = curr->st_next;
+        syntax_free(curr);
+        curr = next;
+    }
+    g_tables = NULL;
 
     /* re-detect syntax for every buffer that has a filename */
     for (bp = bheadp; bp != NULL; bp = bp->b_bufp) {
@@ -901,6 +1255,22 @@ syntax_detect(const char *filename)
     else if (strcmp(ext, "el") == 0 || strcmp(ext, "elc") == 0 ||
              strcmp(ext, "emacs") == 0)
         lang = "elisp";
+    else if (strcmp(ext, "sol") == 0)
+        lang = "solidity";
+    else if (strcmp(ext, "json") == 0 || strcmp(ext, "jsonc") == 0)
+        lang = "json";
+    else if (strcmp(ext, "ini") == 0 || strcmp(ext, "conf") == 0 ||
+             strcmp(ext, "cfg") == 0)
+        lang = "ini";
+    else if (strcmp(ext, "toml") == 0)
+        lang = "toml";
+    else if (strcmp(ext, "move") == 0)
+        lang = "move";
+    else if (strcmp(ext, "md") == 0 || strcmp(ext, "markdown") == 0)
+        lang = "markdown";
+    else if (strcmp(ext, "xml") == 0 || strcmp(ext, "svg") == 0 ||
+             strcmp(ext, "plist") == 0)
+        lang = "xml";
     else
         return NULL;
 

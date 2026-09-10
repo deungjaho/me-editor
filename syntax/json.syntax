@@ -1,0 +1,15 @@
+# JSON syntax definition for me
+
+flags: json_keys
+
+# Strings
+string: " "
+
+# Comments (for JSONC support)
+line_comment: //
+block_comment: /* */
+
+# Constants
+constant: true
+constant: false
+constant: null

@@ -1,8 +1,28 @@
 # JavaScript syntax definition for me
 
-# Keywords
-keyword: async
-keyword: await
+flags: pair_squote
+
+# Control flow, Async, Event Loop & Exceptions (Key Intent for JS/Node)
+control: async
+control: await
+control: break
+control: case
+control: catch
+control: continue
+control: default
+control: do
+control: else
+control: finally
+control: for
+control: if
+control: return
+control: switch
+control: throw
+control: try
+control: while
+control: yield
+
+# Declarations, Modules & Scoping
 keyword: class
 keyword: const
 keyword: debugger
@@ -25,72 +45,35 @@ keyword: this
 keyword: typeof
 keyword: var
 keyword: void
-keyword: yield
+keyword: require
+keyword: process
+keyword: Buffer
 
-# Control flow
-control: break
-control: case
-control: catch
-control: continue
-control: default
-control: do
-control: else
-control: finally
-control: for
-control: if
-control: return
-control: switch
-control: throw
-control: try
-control: while
-
-# Types / builtins
-type: Array
-type: Boolean
-type: Date
-type: Error
-type: Function
-type: Infinity
-type: JSON
-type: Map
-type: Math
-type: NaN
-type: Number
-type: Object
-type: Promise
-type: Proxy
-type: Reflect
-type: RegExp
-type: Set
-type: String
-type: Symbol
-type: TypeError
-type: WeakMap
-type: WeakSet
-type: ArrayBuffer
-type: DataView
-type: Float32Array
-type: Float64Array
-type: Int8Array
-type: Int16Array
-type: Int32Array
-type: Uint8Array
-type: Uint16Array
-type: Uint32Array
-type: BigInt
-type: BigInt64Array
-type: BigUint64Array
-type: console
-type: document
-type: window
-type: global
-type: globalThis
-type: process
-type: Buffer
-type: module
-type: exports
-type: require
-type: undefined
+# Built-in objects / Standard library (neutral sand to eliminate visual noise)
+keyword: Array
+keyword: Boolean
+keyword: Date
+keyword: Error
+keyword: Function
+keyword: Infinity
+keyword: JSON
+keyword: Map
+keyword: Math
+keyword: NaN
+keyword: Number
+keyword: Object
+keyword: Promise
+keyword: Proxy
+keyword: Reflect
+keyword: RegExp
+keyword: Set
+keyword: String
+keyword: Symbol
+keyword: TypeError
+keyword: WeakMap
+keyword: WeakSet
+keyword: ArrayBuffer
+keyword: console
 
 # Strings
 string: " "
@@ -105,3 +88,4 @@ block_comment: /* */
 constant: true
 constant: false
 constant: null
+constant: undefined

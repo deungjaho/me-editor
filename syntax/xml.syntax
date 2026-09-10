@@ -1,0 +1,21 @@
+# XML syntax definition for me
+
+flags: tags
+
+# Standard XML Attributes
+keyword: version
+keyword: encoding
+keyword: standalone
+keyword: xmlns
+keyword: id
+keyword: name
+keyword: class
+keyword: type
+keyword: value
+
+# Strings
+string: " "
+string: ' '
+
+# Comments
+block_comment: <!-- -->

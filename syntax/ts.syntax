@@ -1,10 +1,30 @@
 # TypeScript syntax definition for me
 
+flags: annotations pair_squote
+
+# Control flow, Async, Event Loop & Exceptions (Key Intent for TS/Node)
+control: async
+control: await
+control: break
+control: case
+control: catch
+control: continue
+control: default
+control: do
+control: else
+control: finally
+control: for
+control: if
+control: return
+control: switch
+control: throw
+control: try
+control: while
+control: yield
+
 # Keywords (JS + TS specific)
 keyword: abstract
 keyword: as
-keyword: async
-keyword: await
 keyword: class
 keyword: const
 keyword: declare
@@ -22,7 +42,6 @@ keyword: interface
 keyword: let
 keyword: module
 keyword: namespace
-keyword: never
 keyword: new
 keyword: of
 keyword: private
@@ -37,71 +56,43 @@ keyword: type
 keyword: typeof
 keyword: var
 keyword: void
-keyword: yield
 keyword: keyof
 keyword: infer
 keyword: is
 keyword: satisfies
+keyword: require
+keyword: process
+keyword: Buffer
 
-# Control flow
-control: break
-control: case
-control: catch
-control: continue
-control: default
-control: do
-control: else
-control: finally
-control: for
-control: if
-control: return
-control: switch
-control: throw
-control: try
-control: while
-
-# Types
+# Primitive types (highlighted blue)
 type: any
 type: boolean
 type: number
 type: string
 type: symbol
 type: bigint
-type: object
-type: undefined
 type: unknown
-type: Array
-type: Promise
-type: Date
-type: RegExp
-type: Error
-type: Map
-type: Set
-type: WeakMap
-type: WeakSet
-type: Record
-type: Partial
-type: Required
-type: Readonly
-type: Pick
-type: Omit
-type: Exclude
-type: Extract
-type: NonNullable
-type: Parameters
-type: ReturnType
-type: InstanceType
-type: ThisType
-type: Console
-type: Math
-type: JSON
-type: Symbol
-type: Number
-type: String
-type: Boolean
-type: BigInt
-type: Function
-type: Object
+type: never
+type: void
+type: undefined
+
+# Built-in utility types & objects (neutral sand to eliminate visual clutter)
+keyword: object
+keyword: Promise
+keyword: Array
+keyword: Record
+keyword: Partial
+keyword: Required
+keyword: Readonly
+keyword: Pick
+keyword: Omit
+keyword: Exclude
+keyword: Extract
+keyword: NonNullable
+keyword: Parameters
+keyword: ReturnType
+keyword: InstanceType
+keyword: console
 
 # Strings
 string: " "

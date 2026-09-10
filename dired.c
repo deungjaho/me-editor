@@ -29,7 +29,7 @@
 #include "kbd.h"
 
 void		 dired_init(void);
-static int	 dired(int, int);
+int		 dired(int, int);
 static int	 d_otherwindow(int, int);
 static int	 d_undel(int, int);
 static int	 d_undelbak(int, int);
@@ -316,6 +316,7 @@ dired_init(void)
 	maps_add((KEYMAP *)&diredmap, "dired");
 	maps_add((KEYMAP *)&viewmap, "view");
 	dobindkey(fundamental_map, "dired", "^Xd");
+	dobindkey(fundamental_map, "dired", "^X^D");
 }
 
 int

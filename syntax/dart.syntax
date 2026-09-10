@@ -1,11 +1,31 @@
 # Dart syntax definition for me
 
-# Keywords
+# Control flow, Async & Exceptions (Key Intent for Dart/Flutter)
+control: async
+control: await
+control: break
+control: case
+control: continue
+control: default
+control: do
+control: else
+control: for
+control: if
+control: in
+control: return
+control: switch
+control: while
+control: throw
+control: try
+control: catch
+control: finally
+control: rethrow
+control: yield
+
+# Keywords & Declarations
 keyword: abstract
 keyword: as
 keyword: assert
-keyword: async
-keyword: await
 keyword: class
 keyword: const
 keyword: covariant
@@ -38,62 +58,30 @@ keyword: this
 keyword: typedef
 keyword: var
 keyword: void
-keyword: yield
 
-# Control flow
-control: break
-control: case
-control: continue
-control: default
-control: do
-control: else
-control: for
-control: if
-control: in
-control: return
-control: switch
-control: while
-control: throw
-control: try
-control: catch
-control: finally
-control: rethrow
+# Primitive / Core Types (neutral sand to eliminate noise in method signatures)
+keyword: bool
+keyword: double
+keyword: int
+keyword: num
+keyword: String
+keyword: Never
 
-# Types
-type: bool
-type: double
-type: int
-type: num
-type: String
-type: List
-type: Map
-type: Set
-type: Runes
-type: Symbol
-type: Object
-type: Future
-type: Stream
-type: Iterable
-type: Iterator
-type: Comparable
-type: Pattern
-type: Match
-type: RegExp
-type: Duration
-type: DateTime
-type: Stopwatch
-type: BigInt
-type: Error
-type: Exception
-type: TypeError
-type: ArgumentError
-type: RangeError
-type: StateError
-type: FormatException
-type: Null
-type: Never
-type: print
-type: main
+# Built-in / Flutter General Types (neutral sand to eliminate noise)
+keyword: List
+keyword: Map
+keyword: Set
+keyword: Object
+keyword: Future
+keyword: Stream
+keyword: Iterable
+keyword: DateTime
+keyword: Duration
+keyword: RegExp
+keyword: Error
+keyword: Exception
+keyword: Null
+keyword: print
 
 # Strings
 string: " "

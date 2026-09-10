@@ -459,6 +459,9 @@ forwdel(int f, int n)
 {
 	int s, i, blen;
 
+	if (curwp->w_markp != NULL)
+		return (killregion(FFRAND, 1));
+
 	if (n < 0)
 		return (backdel(f | FFRAND, -n));
 
@@ -495,6 +498,9 @@ int
 backdel(int f, int n)
 {
 	int	s, i, olddoto;
+
+	if (curwp->w_markp != NULL)
+		return (killregion(FFRAND, 1));
 
 	if (n < 0)
 		return (forwdel(f | FFRAND, -n));

@@ -1,5 +1,7 @@
 # Jai syntax definition for me
 
+flags: fixed_types
+
 # Control flow #directives (rose/magenta)
 control: #if
 control: #else
@@ -11,6 +13,7 @@ control: #loop
 control: #return
 control: #break
 control: #continue
+control: #through
 
 # Keywords
 keyword: defer
@@ -101,45 +104,29 @@ control: for
 control: return
 control: break
 control: continue
+control: case
 control: try
 control: catch
 control: finally
 
-# Types
+# Essential types (exact width types u8..u64, s8..s64, float32/64 matched by fixed_types)
 type: bool
-type: s8
-type: s16
-type: s32
-type: s64
-type: int
-type: u8
-type: u16
-type: u32
-type: u64
-type: uint
-type: float
-type: float32
-type: float64
-type: Type
-type: Code
-type: Any
 type: void
-type: string
-type: String
-type: Array
-type: Dynamic_Array
-type: Stack
-type: Queue
-type: Map
-type: Table
-type: Set
-type: Range
-type: Tuple
-type: Maybe
-type: Result
-type: Option
-type: Context
-type: Allocator
+
+# General / Standard Container types (neutral to reduce noise)
+keyword: int
+keyword: uint
+keyword: float
+keyword: string
+keyword: String
+keyword: Type
+keyword: Code
+keyword: Any
+keyword: Array
+keyword: Dynamic_Array
+keyword: Table
+keyword: Context
+keyword: Allocator
 
 # Strings
 string: " "

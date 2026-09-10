@@ -18,6 +18,7 @@
 #include <term.h>
 
 #include "def.h"
+#include "syntax.h"
 #include "funmap.h"
 #include "key.h"
 #include "macro.h"
@@ -32,6 +33,7 @@ static void	 eputi(int, int);
 static void	 eputl(long, int);
 static void	 eputs(const char *);
 static void	 eputc(char);
+static void	 redraw_minibuf(const char *, int, int, int, int);
 static struct list	*copy_list(struct list *);
 
 int		epresf = FALSE;		/* stuff in echo line flag */
@@ -213,6 +215,8 @@ veread(const char *fp, char *buf, size_t nbuf, int flag, va_list ap)
 		return (buf);
 	}
 	epos = cpos = 0;
+	int mark_pos = -1;
+	int prompt_col = 0;
 	ml = mr = esc = 0;
 	cplflag = FALSE;
 
@@ -223,6 +227,7 @@ veread(const char *fp, char *buf, size_t nbuf, int flag, va_list ap)
 	} else
 		eputc(' ');
 	eformat(fp, ap);
+	prompt_col = ttcol;
 	if ((flag & EFDEF) != 0) {
 		if (buf == NULL)
 			return (NULL);
@@ -246,7 +251,135 @@ veread(const char *fp, char *buf, size_t nbuf, int flag, va_list ap)
 		}
 		cplflag = FALSE;
 
+		/* macOS sends non-breaking space (0xC2 0xA0) when Option-Space is pressed */
+		if ((unsigned char)c == 0xC2) {
+			int c2 = getkey(FALSE);
+			if ((unsigned char)c2 == 0xA0) {
+				/* Option-Space (M-SPC) on macOS: set mark */
+				mark_pos = cpos;
+				redraw_minibuf(buf, epos, cpos, mark_pos, prompt_col);
+				continue;
+			} else {
+				ungetkey(c2);
+			}
+		}
+
 		if (esc > 0) { /* ESC sequence started */
+			if (esc == 1) {
+				if (c == ' ' || c == '@') {
+					/* M-SPC or M-@: set mark and highlight selection */
+					mark_pos = cpos;
+					redraw_minibuf(buf, epos, cpos, mark_pos, prompt_col);
+					esc = 0;
+					continue;
+				}
+				if (c == 'w' || c == 'W') {
+					/* copy selection or whole minibuffer (M-w) */
+					kdelete();
+					int s1 = (mark_pos >= 0) ? (mark_pos < cpos ? mark_pos : cpos) : 0;
+					int s2 = (mark_pos >= 0) ? (mark_pos < cpos ? cpos : mark_pos) : epos;
+					for (i = s1; i < s2; i++)
+						kinsert(buf[i], KFORW);
+					kpush_clipboard();
+					mark_pos = -1; /* clear selection after copying */
+					redraw_minibuf(buf, epos, cpos, mark_pos, prompt_col);
+					esc = 0;
+					continue;
+				}
+				if (c == 'b' || c == 'B') {
+					/* backward-word */
+					while (cpos > 0 && !ISWORD(buf[cpos - 1]))
+						cpos--;
+					while (cpos > 0 && ISWORD(buf[cpos - 1]))
+						cpos--;
+					redraw_minibuf(buf, epos, cpos, mark_pos, prompt_col);
+					esc = 0;
+					continue;
+				}
+				if (c == 'f' || c == 'F') {
+					/* forward-word */
+					while (cpos < epos && !ISWORD(buf[cpos]))
+						cpos++;
+					while (cpos < epos && ISWORD(buf[cpos]))
+						cpos++;
+					redraw_minibuf(buf, epos, cpos, mark_pos, prompt_col);
+					esc = 0;
+					continue;
+				}
+				if (c == 'd' || c == 'D') {
+					/* kill-word forward */
+					int delstart = cpos;
+					int delend = cpos;
+					while (delend < epos && !ISWORD(buf[delend]))
+						delend++;
+					while (delend < epos && ISWORD(buf[delend]))
+						delend++;
+					int delcount = delend - delstart;
+					if (delcount > 0) {
+						for (i = delstart; i + delcount < epos; i++)
+							buf[i] = buf[i + delcount];
+						epos -= delcount;
+						mark_pos = -1;
+						redraw_minibuf(buf, epos, cpos, mark_pos, prompt_col);
+					}
+					esc = 0;
+					continue;
+				}
+				if (c == '[' || c == 'O') {
+					/* CSI or SS3 sequence */
+					esc = 2;
+					continue;
+				}
+				/* Unknown single-char Alt sequence: safely discard */
+				esc = 0;
+				continue;
+			}
+
+			if (esc == 2) {
+				/* Standard cursor keys: \e[D or \eOD (Left), \e[C or \eOC (Right) */
+				if (c == 'D') {
+					c = CCHR('B');
+					esc = 0;
+				} else if (c == 'C') {
+					c = CCHR('F');
+					esc = 0;
+				} else if (c == 'A' || c == 'B') {
+					/* Up / Down ignored in standard minibuffer */
+					esc = 0;
+					continue;
+				} else if (c >= '0' && c <= '9') {
+					/* Extended parameter sequence: e.g. \e[32;3u or \e[1;5D */
+					char pbuf[32];
+					int plen = 0;
+					pbuf[plen++] = (char)c;
+					while (plen < (int)sizeof(pbuf) - 1 && charswaiting()) {
+						int pc = getkey(FALSE);
+						pbuf[plen++] = (char)pc;
+						if ((pc >= 'A' && pc <= 'Z') || (pc >= 'a' && pc <= 'z') || pc == '~')
+							break;
+					}
+					pbuf[plen] = '\0';
+					/* Check for CSI u Option-Space: 32;3u or 32;2u */
+					if (strcmp(pbuf, "32;3u") == 0 || strcmp(pbuf, "32;2u") == 0 ||
+					    strcmp(pbuf, "27;3;32~") == 0) {
+						mark_pos = cpos;
+						redraw_minibuf(buf, epos, cpos, mark_pos, prompt_col);
+					} else if (pbuf[plen - 1] == 'D') {
+						c = CCHR('B');
+					} else if (pbuf[plen - 1] == 'C') {
+						c = CCHR('F');
+					}
+					esc = 0;
+					if (c == CCHR('B') || c == CCHR('F'))
+						goto handle_cursor_key;
+					continue;
+				} else {
+					/* Other escape code byte: safely terminate */
+					esc = 0;
+					continue;
+				}
+			}
+
 			match = 0;
 			if (ml == esc && key_left[ml] && c == key_left[ml]) {
 				match++;
@@ -272,53 +405,55 @@ veread(const char *fp, char *buf, size_t nbuf, int flag, va_list ap)
 				continue;
 			}
 		}
+handle_cursor_key:
 		switch (c) {
 		case CCHR('A'): /* start of line */
 			while (cpos > 0) {
-				if (ISCTRL(buf[--cpos]) != FALSE) {
-					ttputc('\b');
-					--ttcol;
-				}
-				ttputc('\b');
-				--ttcol;
+				cpos--;
 			}
-			ttflush();
+			redraw_minibuf(buf, epos, cpos, mark_pos, prompt_col);
 			break;
 		case CCHR('D'):
 			if (cpos != epos) {
-				tteeol();
 				epos--;
-				rr = ttrow;
-				cc = ttcol;
 				for (i = cpos; i < epos; i++) {
 					buf[i] = buf[i + 1];
-					eputc(buf[i]);
 				}
-				ttmove(rr, cc);
-				ttflush();
+				mark_pos = -1;
+				redraw_minibuf(buf, epos, cpos, mark_pos, prompt_col);
 			}
 			break;
 		case CCHR('E'): /* end of line */
 			while (cpos < epos) {
-				eputc(buf[cpos++]);
+				cpos++;
 			}
-			ttflush();
+			redraw_minibuf(buf, epos, cpos, mark_pos, prompt_col);
 			break;
 		case CCHR('B'): /* back */
 			if (cpos > 0) {
-				if (ISCTRL(buf[--cpos]) != FALSE) {
+				cpos--;
+				if (mark_pos >= 0) {
+					redraw_minibuf(buf, epos, cpos, mark_pos, prompt_col);
+				} else {
+					if (ISCTRL(buf[cpos]) != FALSE) {
+						ttputc('\b');
+						--ttcol;
+					}
 					ttputc('\b');
 					--ttcol;
+					ttflush();
 				}
-				ttputc('\b');
-				--ttcol;
-				ttflush();
 			}
 			break;
 		case CCHR('F'): /* forw */
 			if (cpos < epos) {
-				eputc(buf[cpos++]);
-				ttflush();
+				cpos++;
+				if (mark_pos >= 0) {
+					redraw_minibuf(buf, epos, cpos, mark_pos, prompt_col);
+				} else {
+					eputc(buf[cpos - 1]);
+					ttflush();
+				}
 			}
 			break;
 		case CCHR('Y'): /* yank from kill buffer */
@@ -407,75 +542,36 @@ veread(const char *fp, char *buf, size_t nbuf, int flag, va_list ap)
 		case CCHR('H'):			/* rubout, erase */
 		case CCHR('?'):
 			if (cpos != 0) {
-				y = buf[--cpos];
 				epos--;
-				ttputc('\b');
-				ttcol--;
-				if (ISCTRL(y) != FALSE) {
-					ttputc('\b');
-					ttcol--;
-				}
-				rr = ttrow;
-				cc = ttcol;
-				for (i = cpos; i < epos; i++) {
+				cpos--;
+				for (i = cpos; i < epos; i++)
 					buf[i] = buf[i + 1];
-					eputc(buf[i]);
-				}
-				ttputc(' ');
-				if (ISCTRL(y) != FALSE) {
-					ttputc(' ');
-					ttputc('\b');
-				}
-				ttputc('\b');
-				ttmove(rr, cc);
-				ttflush();
+				mark_pos = -1;
+				redraw_minibuf(buf, epos, cpos, mark_pos, prompt_col);
 			}
 			break;
 		case CCHR('X'):			/* kill line */
 		case CCHR('U'):
-			while (cpos != 0) {
-				ttputc('\b');
-				ttputc(' ');
-				ttputc('\b');
-				--ttcol;
-				if (ISCTRL(buf[--cpos]) != FALSE) {
-					ttputc('\b');
-					ttputc(' ');
-					ttputc('\b');
-					--ttcol;
-				}
-				epos--;
-			}
-			ttflush();
+			cpos = epos = 0;
+			mark_pos = -1;
+			redraw_minibuf(buf, epos, cpos, mark_pos, prompt_col);
 			break;
 		case CCHR('W'):			/* kill to beginning of word */
-			while ((cpos > 0) && !ISWORD(buf[cpos - 1])) {
-				ttputc('\b');
-				ttputc(' ');
-				ttputc('\b');
-				--ttcol;
-				if (ISCTRL(buf[--cpos]) != FALSE) {
-					ttputc('\b');
-					ttputc(' ');
-					ttputc('\b');
-					--ttcol;
+			{
+				int delend = cpos;
+				while (cpos > 0 && !ISWORD(buf[cpos - 1]))
+					cpos--;
+				while (cpos > 0 && ISWORD(buf[cpos - 1]))
+					cpos--;
+				int delcount = delend - cpos;
+				if (delcount > 0) {
+					for (i = cpos; i + delcount < epos; i++)
+						buf[i] = buf[i + delcount];
+					epos -= delcount;
+					mark_pos = -1;
+					redraw_minibuf(buf, epos, cpos, mark_pos, prompt_col);
 				}
-				epos--;
 			}
-			while ((cpos > 0) && ISWORD(buf[cpos - 1])) {
-				ttputc('\b');
-				ttputc(' ');
-				ttputc('\b');
-				--ttcol;
-				if (ISCTRL(buf[--cpos]) != FALSE) {
-					ttputc('\b');
-					ttputc(' ');
-					ttputc('\b');
-					--ttcol;
-				}
-				epos--;
-			}
-			ttflush();
 			break;
 		case CCHR('\\'):
 		case CCHR('Q'):			/* quote next */
@@ -499,13 +595,7 @@ veread(const char *fp, char *buf, size_t nbuf, int flag, va_list ap)
 				buf[i] = buf[i - 1];
 			buf[cpos++] = (char)c;
 			epos++;
-			eputc((char)c);
-			cc = ttcol;
-			rr = ttrow;
-			for (i = cpos; i < epos; i++)
-				eputc(buf[i]);
-			ttmove(rr, cc);
-			ttflush();
+			redraw_minibuf(buf, epos, cpos, mark_pos, prompt_col);
 		}
 
 skipkey:	/* ignore key press */
@@ -979,6 +1069,64 @@ eputc(char c)
 		ttputc(c);
 		++ttcol;
 	}
+}
+
+static void
+redraw_minibuf(const char *buf, int epos, int cpos, int mark_pos, int prompt_col)
+{
+	/* Force position to prompt column by invalidating cached position */
+	ttrow = ttcol = HUGE;
+	ttmove(nrow - 1, prompt_col);
+	tthue = CNONE;
+	ttcolor(CTEXT);
+	tteeol();
+	int s1 = -1, s2 = -1;
+	if (mark_pos >= 0) {
+		if (mark_pos == cpos) {
+			/* When mark is set right at cursor, highlight the single character under cursor */
+			s1 = cpos;
+			s2 = (cpos < epos) ? cpos + 1 : cpos;
+		} else {
+			s1 = (mark_pos < cpos) ? mark_pos : cpos;
+			s2 = (mark_pos < cpos) ? cpos : mark_pos;
+		}
+	}
+
+	int in_prev_sel = 0;
+	int cur_col = prompt_col;
+	for (int i = 0; i < epos; i++) {
+		int in_sel = (s1 >= 0 && i >= s1 && i < s2);
+		if (in_sel != in_prev_sel) {
+			if (in_sel)
+				ttcolor(SCOLOR_DEFAULT | REGION_BIT);
+			else
+				ttcolor(CTEXT);
+			in_prev_sel = in_sel;
+		}
+		if (ISCTRL(buf[i])) {
+			ttputc('^');
+			ttputc(CCHR(buf[i]));
+			cur_col += 2;
+		} else {
+			ttputc(buf[i]);
+			cur_col++;
+		}
+	}
+	ttcolor(CTEXT);
+	ttcol = cur_col;
+	tteeol();
+
+	int target_col = prompt_col;
+	for (int i = 0; i < cpos; i++) {
+		if (ISCTRL(buf[i]))
+			target_col += 2;
+		else
+			target_col++;
+	}
+	/* Invalidate ttcol to guarantee cursor position is emitted to physical terminal */
+	ttcol = HUGE;
+	ttmove(nrow - 1, target_col);
+	ttflush();
 }
 
 void

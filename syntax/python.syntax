@@ -1,12 +1,30 @@
 # Python syntax definition for me
 
-flags: annotations
+flags: annotations pair_squote
 
-# Keywords
+# Control flow, Async, Exceptions & Context Managers (Key Intent for Python)
+control: async
+control: await
+control: break
+control: case
+control: continue
+control: elif
+control: else
+control: except
+control: finally
+control: for
+control: if
+control: match
+control: raise
+control: return
+control: try
+control: while
+control: with
+control: yield
+control: assert
+
+# Keywords & Declarations
 keyword: as
-keyword: assert
-keyword: async
-keyword: await
 keyword: class
 keyword: def
 keyword: del
@@ -20,74 +38,44 @@ keyword: nonlocal
 keyword: not
 keyword: or
 keyword: pass
-keyword: with
-keyword: yield
 keyword: and
 
-# Control flow
-control: break
-control: continue
-control: elif
-control: else
-control: except
-control: finally
-control: for
-control: if
-control: match
-control: case
-control: return
-control: try
-control: while
-control: raise
-
-# Types / builtins
+# Core object references (highlighted blue)
 type: self
 type: cls
-type: int
-type: str
-type: float
-type: bool
-type: list
-type: dict
-type: tuple
-type: set
-type: bytes
-type: object
-type: type
-type: frozenset
-type: complex
-type: bytearray
-type: range
-type: print
-type: len
-type: open
-type: input
-type: map
-type: filter
-type: zip
-type: enumerate
-type: sorted
-type: reversed
-type: sum
-type: min
-type: max
-type: abs
-type: round
-type: pow
-type: divmod
-type: isinstance
-type: issubclass
-type: hasattr
-type: getattr
-type: setattr
-type: delattr
-type: super
 
-# Strings
-string: " "
-string: ' '
+# Standard types & built-in functions (neutral to eliminate noise)
+keyword: int
+keyword: str
+keyword: float
+keyword: bool
+keyword: list
+keyword: dict
+keyword: tuple
+keyword: set
+keyword: bytes
+keyword: object
+keyword: type
+keyword: frozenset
+keyword: complex
+keyword: bytearray
+keyword: range
+keyword: print
+keyword: len
+keyword: open
+keyword: input
+keyword: map
+keyword: filter
+keyword: zip
+keyword: enumerate
+keyword: sorted
+keyword: reversed
+
+# Strings (single and triple-quoted)
 string: """ """
 string: ''' '''
+string: " "
+string: ' '
 
 # Comments
 line_comment: #

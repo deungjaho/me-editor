@@ -598,3 +598,22 @@ undo(int f, int n)
 
 	return (rval);
 }
+
+/*
+ * Redo the last undone action.
+ * Bound to Ctrl-Shift-/ (CSI u \e[47;6u or \e[31;2u etc.)
+ *
+ * In standard Emacs / mg undo tree semantics:
+ * When undoing continuously, undoptr moves down the undo history.
+ * Any non-undo command (such as typing, moving, or invoking redo) breaks
+ * the undo chain by clearing undoptr.
+ * Redo simply acts as breaking the chain and undoing the inverted operations
+ * that were freshly prepended to the undo queue, restoring the buffer.
+ */
+int
+redo(int f, int n)
+{
+	rptcount = 0;
+	curbp->b_undoptr = NULL;
+	return undo(f, n);
+}

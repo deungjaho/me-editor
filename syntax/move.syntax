@@ -1,0 +1,77 @@
+# Move smart contract syntax definition for me (Sui / Aptos)
+
+flags: fixed_types
+
+# Abilities & Resource Safety, State Transfer & Aborts (Key Intent for Move)
+control: abort
+control: assert!
+control: return
+control: break
+control: continue
+control: if
+control: else
+control: loop
+control: while
+control: mut
+control: acquires
+control: friend
+
+# Declaration Keywords & Structure
+keyword: module
+keyword: script
+keyword: struct
+keyword: enum
+keyword: fun
+keyword: public
+keyword: entry
+keyword: native
+keyword: const
+keyword: use
+keyword: as
+keyword: let
+keyword: match
+keyword: type
+keyword: has
+
+# Move Abilities (First-class Object & Asset Rules)
+type: copy
+type: drop
+type: store
+type: key
+
+# Primitive Types
+type: bool
+type: u8
+type: u16
+type: u32
+type: u64
+type: u128
+type: u256
+type: address
+type: signer
+type: vector
+
+# Builtin Functions / Core System Calls
+type: borrow_global
+type: borrow_global_mut
+type: move_to
+type: move_from
+type: exists
+type: freeze
+
+# Strings (standard & byte strings b"...")
+string: b" "
+string: b' '
+string: " "
+string: ' '
+
+# Comments
+line_comment: //
+block_comment: /* */
+
+# Constants
+constant: true
+constant: false
+constant: @0x0
+constant: @0x1
+constant: @0x2
