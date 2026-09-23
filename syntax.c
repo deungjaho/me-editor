@@ -27,19 +27,24 @@ static struct syntax_table *g_tables = NULL;  /* loaded tables linked list */
 /* ---- keyword hash ---- */
 
 static unsigned int
-kw_hash(const char *s, int len)
+kw_hash(const char *s, int len, int case_insensitive)
 {
     unsigned int h = 5381;
     int i;
-    for (i = 0; i < len; i++)
-        h = ((h << 5) + h) + (unsigned char)s[i];
+    for (i = 0; i < len; i++) {
+        unsigned char c = (unsigned char)s[i];
+        if (case_insensitive)
+            c = (unsigned char)tolower(c);
+        h = ((h << 5) + h) + c;
+    }
     return h % SYN_HASHSIZE;
 }
 
 static void
 kw_add(struct syntax_table *st, const char *word, int color)
 {
-    unsigned int h = kw_hash(word, strlen(word));
+    int ci = (st->st_flags & SYNFLAG_CASE_INSENSITIVE);
+    unsigned int h = kw_hash(word, strlen(word), ci);
     struct syn_kw *e = malloc(sizeof(*e));
     if (e == NULL)
         return;
@@ -52,12 +57,19 @@ kw_add(struct syntax_table *st, const char *word, int color)
 static int
 kw_lookup(struct syntax_table *st, const char *word, int len)
 {
-    unsigned int h = kw_hash(word, len);
+    int ci = (st->st_flags & SYNFLAG_CASE_INSENSITIVE);
+    unsigned int h = kw_hash(word, len, ci);
     struct syn_kw *e;
     for (e = st->st_kw[h]; e != NULL; e = e->kw_next) {
-        if (strlen(e->kw_word) == (size_t)len &&
-            memcmp(e->kw_word, word, len) == 0)
-            return e->kw_color;
+        if (strlen(e->kw_word) == (size_t)len) {
+            if (ci) {
+                if (strncasecmp(e->kw_word, word, len) == 0)
+                    return e->kw_color;
+            } else {
+                if (memcmp(e->kw_word, word, len) == 0)
+                    return e->kw_color;
+            }
+        }
     }
     return SCOLOR_DEFAULT;
 }
@@ -621,6 +633,8 @@ syntax_load(const char *path)
                     st->st_flags |= SYNFLAG_PAIR_SQUOTE;
                 } else if (strcmp(tok, "no_autopair") == 0) {
                     st->st_flags |= SYNFLAG_NO_AUTOPAIR;
+                } else if (strcmp(tok, "case_insensitive") == 0) {
+                    st->st_flags |= SYNFLAG_CASE_INSENSITIVE;
                 }
                 tok = strtok(NULL, " \t");
             }
@@ -1271,6 +1285,8 @@ syntax_detect(const char *filename)
     else if (strcmp(ext, "xml") == 0 || strcmp(ext, "svg") == 0 ||
              strcmp(ext, "plist") == 0)
         lang = "xml";
+    else if (strcmp(ext, "sql") == 0)
+        lang = "sql";
     else
         return NULL;
 

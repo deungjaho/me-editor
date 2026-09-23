@@ -1,0 +1,144 @@
+# SQL syntax definition for me
+
+flags: case_insensitive pair_squote
+
+# Transaction, Execution & Data Mutation Control Flow (Primary Focus - rose/magenta)
+control: select
+control: insert
+control: update
+control: delete
+control: merge
+control: upsert
+control: replace
+control: truncate
+control: create
+control: alter
+control: drop
+control: begin
+control: commit
+control: rollback
+control: savepoint
+control: grant
+control: revoke
+control: where
+control: having
+control: join
+control: inner
+control: left
+control: right
+control: full
+control: cross
+control: outer
+control: on
+control: union
+control: intersect
+control: except
+control: case
+control: when
+control: then
+control: else
+control: end
+control: order
+control: group
+control: limit
+control: offset
+
+# Common SQL Data Types (type focus)
+type: int
+type: integer
+type: smallint
+type: bigint
+type: tinyint
+type: serial
+type: bigserial
+type: float
+type: real
+type: double
+type: decimal
+type: numeric
+type: char
+type: varchar
+type: text
+type: boolean
+type: bool
+type: date
+type: time
+type: timestamp
+type: timestamptz
+type: interval
+type: blob
+type: bytea
+type: json
+type: jsonb
+type: uuid
+
+# Syntax Keywords & Clause Modifiers (neutral sand)
+keyword: from
+keyword: into
+keyword: set
+keyword: values
+keyword: by
+keyword: as
+keyword: distinct
+keyword: all
+keyword: exists
+keyword: in
+keyword: is
+keyword: not
+keyword: and
+keyword: or
+keyword: like
+keyword: ilike
+keyword: between
+keyword: asc
+keyword: desc
+keyword: primary
+keyword: foreign
+keyword: key
+keyword: check
+keyword: unique
+keyword: default
+keyword: index
+keyword: table
+keyword: view
+keyword: database
+keyword: schema
+keyword: trigger
+keyword: procedure
+keyword: function
+keyword: returning
+keyword: cascade
+keyword: references
+keyword: nulls
+keyword: first
+keyword: last
+keyword: over
+keyword: partition
+keyword: with
+keyword: recursive
+
+# Aggregate & Window Functions
+keyword: count
+keyword: sum
+keyword: avg
+keyword: min
+keyword: max
+keyword: coalesce
+keyword: nullif
+keyword: row_number
+keyword: rank
+keyword: dense_rank
+
+# Strings
+string: ' '
+string: " "
+string: ` `
+
+# Comments
+line_comment: --
+block_comment: /* */
+
+# Constants
+constant: null
+constant: true
+constant: false

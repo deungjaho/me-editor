@@ -78,6 +78,7 @@ enum {
 #define SYNFLAG_NO_NUMBERS   0x20   /* Disable number literal highlighting (e.g. for Markdown) */
 #define SYNFLAG_PAIR_SQUOTE  0x40   /* Auto-pair single quote ' */
 #define SYNFLAG_NO_AUTOPAIR  0x80   /* Disable auto-pairing in this mode */
+#define SYNFLAG_CASE_INSENSITIVE 0x100 /* Case-insensitive keyword lookup (e.g. SQL) */
 
 /* ---- data structures ---- */
 
