@@ -42,6 +42,7 @@ static int	 d_rename(int, int);
 static int	 d_exec(int, struct buffer *, const char *, const char *, ...);
 static int	 d_shell_command(int, int);
 static int	 d_create_directory(int, int);
+static int	 d_fnamelen(struct line *, int);
 static int	 d_makename(struct line *, char *, size_t);
 static int	 d_warpdot(struct line *, int *);
 static int	 d_forwpage(int, int);
@@ -489,7 +490,13 @@ d_expunge(int f, int n)
 		curwp->w_dotline++;
 		nlp = lforw(lp);
 		if (llength(lp) && lgetc(lp, 0) == 'D') {
-			switch (d_makename(lp, fname, sizeof(fname))) {
+			int	s;
+
+			s = d_makename(lp, fname, sizeof(fname));
+			/* Delete the link itself, never its target. */
+			if (s == TRUE && lgetc(lp, 2) == 'l')
+				s = FALSE;
+			switch (s) {
 			case ABORT:
 				dobeep();
 				ewprintf("Bad line in dired buffer");
@@ -895,23 +902,48 @@ refreshbuffer(struct buffer *bp)
 	return (bp);
 }
 
+/*
+ * Length of the file name field on a dired line; for symlinks, stop
+ * before the " -> target" text that ls appends.
+ */
+static int
+d_fnamelen(struct line *lp, int start)
+{
+	int	i, end = llength(lp);
+
+	if (lgetc(lp, 2) != 'l')
+		return (end - start);
+	for (i = start; i + 3 < end; i++) {
+		if (lp->l_text[i] == ' ' && lp->l_text[i + 1] == '-' &&
+		    lp->l_text[i + 2] == '>' && lp->l_text[i + 3] == ' ')
+			return (i - start);
+	}
+	return (end - start);
+}
+
 static int
 d_makename(struct line *lp, char *fn, size_t len)
 {
-	int	 start, nlen, ret;
-	char	*namep;
+	int		 start, nlen, ret;
+	char		*namep;
+	struct stat	 statbuf;
 
 	if (d_warpdot(lp, &start) == FALSE)
 		return (ABORT);
 	namep = &lp->l_text[start];
-	nlen = llength(lp) - start;
+	nlen = d_fnamelen(lp, start);
 
 	ret = snprintf(fn, len, "%s%.*s", curbp->b_fname, nlen, namep);
 	if (ret < 0 || ret >= (int)len)
 		return (ABORT); /* Name is too long. */
 
 	/* Return TRUE if the entry is a directory. */
-	return ((lgetc(lp, 2) == 'd') ? TRUE : FALSE);
+	if (lgetc(lp, 2) == 'd')
+		return (TRUE);
+	if (lgetc(lp, 2) == 'l' &&
+	    stat(fn, &statbuf) == 0 && S_ISDIR(statbuf.st_mode))
+		return (TRUE);
+	return (FALSE);
 }
 
 #define NAME_FIELD	9
