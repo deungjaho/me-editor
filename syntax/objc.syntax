@@ -1,0 +1,134 @@
+# Objective-C syntax definition for me
+
+flags: fixed_types annotations
+
+# Preprocessor directives
+# Conditional compilation = control flow (rose/magenta)
+control: #if
+control: #ifdef
+control: #ifndef
+control: #elif
+control: #else
+control: #endif
+# Other directives = declarations (sand)
+keyword: #include
+keyword: #import
+keyword: #define
+keyword: #undef
+keyword: #pragma
+keyword: #error
+keyword: #warning
+keyword: #line
+
+# Keywords
+keyword: auto
+keyword: const
+keyword: enum
+keyword: extern
+keyword: inline
+keyword: register
+keyword: restrict
+keyword: sizeof
+keyword: static
+keyword: struct
+keyword: typedef
+keyword: union
+keyword: volatile
+keyword: __block
+keyword: _Nonnull
+keyword: _Nullable
+keyword: _Null_unspecified
+
+# Control flow keywords (rose/magenta)
+control: break
+control: case
+control: continue
+control: default
+control: do
+control: else
+control: for
+control: goto
+control: if
+control: in
+control: return
+control: switch
+control: while
+
+# Property attributes & modifiers (neutral sand)
+keyword: assign
+keyword: copy
+keyword: strong
+keyword: weak
+keyword: readonly
+keyword: readwrite
+keyword: nonatomic
+keyword: atomic
+keyword: retain
+keyword: getter
+keyword: setter
+keyword: nullable
+keyword: nonnull
+keyword: unsafe_unretained
+
+# Fixed-width & system boundary types (highlighted blue)
+type: int8_t
+type: int16_t
+type: int32_t
+type: int64_t
+type: uint8_t
+type: uint16_t
+type: uint32_t
+type: uint64_t
+type: size_t
+type: ssize_t
+type: ptrdiff_t
+type: intptr_t
+type: uintptr_t
+type: NSInteger
+type: NSUInteger
+type: CGFloat
+type: CFIndex
+
+# General types (neutral sand to reduce noise)
+keyword: char
+keyword: double
+keyword: float
+keyword: int
+keyword: long
+keyword: short
+keyword: signed
+keyword: unsigned
+keyword: void
+keyword: BOOL
+keyword: id
+keyword: Class
+keyword: SEL
+keyword: IMP
+keyword: instancetype
+keyword: NSObject
+keyword: NSString
+keyword: NSArray
+keyword: NSDictionary
+keyword: NSSet
+keyword: NSNumber
+keyword: NSData
+keyword: NSError
+keyword: NSValue
+keyword: dispatch_block_t
+
+# Strings
+string: " "
+string: ' '
+
+# Comments
+line_comment: //
+block_comment: /* */
+
+# Constants
+constant: YES
+constant: NO
+constant: nil
+constant: Nil
+constant: true
+constant: false
+constant: NULL
