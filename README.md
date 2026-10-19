@@ -1,17 +1,16 @@
-mg
+me
 ==
-This is a portable version of the Mg editor from OpenBSD.
+This is a fork of the Mg editor from OpenBSD, with native UTF-8 support,
+data-driven syntax highlighting, and modern editor enhancements.
 
-Mg is intended to be a small, fast, and portable editor for people who
+`me` is intended to be a small, fast, and portable editor for people who
 can't (or don't want to) run emacs for one reason or another, or are not
 familiar with the vi editor. It is compatible with emacs because there
 shouldn't be any reason to learn more editor types than emacs or vi.
 
-This repository aggressively tracks upstream.
-
 Compiling
 ---------
-`mg` has a simple configure script that generates a `POSIX` `Makefile`.
+`me` has a simple configure script that generates a `POSIX` `Makefile`.
 ```
 $ ./configure
 $ make
@@ -32,12 +31,12 @@ the system's libc.
 Single-user mode
 ----------------
 When configured with `--enable-static` and `--with-builtin-curses`, the
-resulting `mg` binary can use used in single-user mode if placed in `/`
+resulting `me` binary can use used in single-user mode if placed in `/`
 or `/bin` or some other directory accessible in single-user mode.
 
-`mg` can be invoked in single-user mode similar to:
+`me` can be invoked in single-user mode similar to:
 ```
-$ TERM=vt100 mg
+$ TERM=vt100 me
 ```
 
 Testing
@@ -51,12 +50,3 @@ Files originating from `mg` are Public Domain. Files needed for portability
 have their own individual license headers.
 All licenses are ISC or BSD.
 
-Commonly asked questions
-------------------------
-`mg` does not yet support UTF-8. If you would like to work on this, please
-reach out to the tech@ mailing list on OpenBSD.
-
-Get a tarball
--------------
-See the Releases tab on GitHub.
-The latest version is mg-7.3.

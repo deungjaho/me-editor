@@ -32,9 +32,9 @@
 ## 2. 整体架构
 
 ```
-.syntax 文件 (数据)              mg 内核 (C 代码)
+.syntax 文件 (数据)              me 内核 (C 代码)
 ┌─────────────────────┐         ┌──────────────────────────┐
-│ ~/.mg/syntax/       │         │ syntax.c                 │
+│ ~/.me-syntax/       │         │ syntax.c                 │
 │   c.syntax          │  加载   │  ├─ syntax_load()        │
 │   python.syntax     │◄───────│  ├─ syntax_match_line()  │
 │   sh.syntax         │         │  └─ syntax_free()        │
@@ -55,7 +55,7 @@
 
 ### 数据流
 
-1. 启动时或 `M-x syntax-on` 时，从 `~/.mg/syntax/<lang>.syntax` 加载语法表
+1. 启动时或 `M-x syntax-on` 时，从 `~/.me-syntax/<lang>.syntax` 加载语法表
 2. 渲染某行时，`syntax_match_line()` 从上一行结束状态恢复，扫描该行，为每个字节生成颜色码
 3. `vtputchar()` 渲染字符时，将颜色码写入 `v_hue[col]`
 4. `uline()` 输出到终端时，颜色码变化处调 `ttcolor()` 切色
@@ -402,7 +402,7 @@ keyword_lookup(struct syntax_table *table,
 ### 6.1 文件位置
 
 ```
-~/.mg/syntax/<lang>.syntax
+~/.me-syntax/<lang>.syntax
 ```
 
 按文件扩展名自动选择：
@@ -590,7 +590,7 @@ enum {
 
 ### 7.3 用户自定义颜色
 
-在 `.mg` 配置文件中：
+在 `.me` 配置文件中：
 
 ```
 (syntax-color keyword yellow)
@@ -606,7 +606,7 @@ enum {
 
 ## 8. 配置和命令
 
-### 8.1 mg 命令
+### 8.1 me 命令
 
 | 命令 | 快捷键 | 说明 |
 |------|--------|------|
@@ -616,7 +616,7 @@ enum {
 | `syntax-color` | 无 | 设置颜色（`M-x syntax-color keyword yellow`） |
 | `syntax-reload` | 无 | 重新加载语法文件 |
 
-### 8.2 .mg 配置
+### 8.2 .me 配置
 
 ```
 (syntax-on)
@@ -733,7 +733,7 @@ struct line {
 3. **tokenizer 引擎**：`syntax.c` 核心扫描逻辑，先用硬编码的 C 关键字测试
 4. **语法文件解析**：`.syntax` 文件加载器
 5. **多行状态**：`l_synstate` + 块注释跨行
-6. **配置集成**：`M-x syntax-on/off`，自动检测，`.mg` 配置
+6. **配置集成**：`M-x syntax-on/off`，自动检测，`.me` 配置
 7. **语法定义文件**：c / python / sh
 8. **编译测试**
 

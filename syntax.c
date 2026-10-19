@@ -1,7 +1,7 @@
 /* Public domain. */
 
 /*
- * Syntax highlighting engine for mg.
+ * Syntax highlighting engine for me.
  *
  * Data-driven: language rules are loaded from .syntax files.
  * The tokenizer scans one line at a time, carrying block-comment
@@ -18,6 +18,7 @@
 
 #include "def.h"
 #include "kbd.h"
+#include "pathnames.h"
 #include "syntax.h"
 
 /* ---- globals ---- */
@@ -1150,7 +1151,7 @@ syntax_mode(int f, int n)
         const char *home = getenv("HOME");
         if (home == NULL)
             home = ".";
-        snprintf(path, sizeof(path), "%s/.mg-syntax/%s.syntax",
+        snprintf(path, sizeof(path), _PATH_ME_SYNTAX,
             home, buf);
         st = syntax_load(path);
         if (st == NULL) {
@@ -1301,7 +1302,7 @@ found:
     home = getenv("HOME");
     if (home == NULL)
         home = ".";
-    snprintf(path, sizeof(path), "%s/.mg-syntax/%s.syntax", home, lang);
+    snprintf(path, sizeof(path), _PATH_ME_SYNTAX, home, lang);
     st = syntax_load(path);
     if (st != NULL)
         st->st_lang = strdup(lang);

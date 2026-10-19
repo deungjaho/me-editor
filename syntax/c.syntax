@@ -1,5 +1,5 @@
-# C syntax definition for mg
-# Place in ~/.mg/syntax/c.syntax
+# C syntax definition for me
+# Place in ~/.me-syntax/c.syntax
 
 flags: fixed_types
 

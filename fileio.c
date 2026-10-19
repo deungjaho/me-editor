@@ -341,11 +341,11 @@ startupfile(char *suffix, char *conffile, char *path, size_t len)
 	if (conffile != NULL) {
 		(void)strlcpy(path, conffile, len);
 	} else if (suffix == NULL) {
-		ret = snprintf(path, len, _PATH_MG_STARTUP, home);
+		ret = snprintf(path, len, _PATH_ME_STARTUP, home);
 		if (ret < 0 || ret >= len)
 			return (NULL);
 	} else {
-		ret = snprintf(path, len, _PATH_MG_TERM, home, suffix);
+		ret = snprintf(path, len, _PATH_ME_TERM, home, suffix);
 		if (ret < 0 || ret >= len)
 			return (NULL);
 	}
@@ -644,7 +644,7 @@ bkuplocation(const char *fn)
 int
 backuptohomedir(int f, int n)
 {
-	const char	*c = _PATH_MG_DIR;
+	const char	*c = _PATH_ME_DIR;
 	char		*p;
 
 	if (bkupdir == NULL) {
@@ -666,8 +666,8 @@ backuptohomedir(int f, int n)
 }
 
 /*
- * For applications that use mg as the editor and have a desire to keep
- * '~' files in /tmp, toggle the location: /tmp | ~/.mg.d
+ * For applications that use me as the editor and have a desire to keep
+ * '~' files in /tmp, toggle the location: /tmp | ~/.me.d
  */
 int
 toggleleavetmp(int f, int n)

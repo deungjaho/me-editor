@@ -2,13 +2,13 @@
 .\" This file is in the public domain.
 .\"
 .Dd $Mdocdate: June 28 2023 $
-.Dt MG 1
+.Dt ME 1
 .Os
 .Sh NAME
-.Nm mg
+.Nm me
 .Nd emacs-like text editor
 .Sh SYNOPSIS
-.Nm mg
+.Nm me
 .Op Fl nR
 .Op Fl b Ar file
 .Op Fl f Ar mode
@@ -56,7 +56,7 @@ Files specified on the command line will be opened read-only.
 Use
 .Ar file
 as the startup file, instead of the default
-.Pa ~/.mg .
+.Pa ~/.me .
 .El
 .Sh WINDOWS AND BUFFERS
 When a file is loaded into
@@ -107,7 +107,7 @@ Whether to create backup files or not can be toggled with the
 command.
 The backup file location can either be in the current
 working directory, or all backups can be moved to a
-.Pa ~/.mg.d
+.Pa ~/.me.d
 directory where files retain their path name to retain uniqueness.
 Use the
 .Ic backup-to-home-directory
@@ -361,10 +361,10 @@ delete-backward-char
 For a complete description of
 .Nm
 commands, see
-.Sx MG COMMANDS .
+.Sx ME COMMANDS .
 To see the active keybindings at any time, type
 .Dq M-x describe-bindings .
-.Sh MG COMMANDS
+.Sh ME COMMANDS
 Commands are invoked by
 .Dq M-x ,
 or by binding to a key.
@@ -413,7 +413,7 @@ Can be set globally with
 Move the dot to the first non-whitespace character on the current line.
 .It Ic backup-to-home-directory
 Save backup copies to a
-.Pa ~/.mg.d
+.Pa ~/.me.d
 directory instead of working directory.
 Requires
 .Ic make-backup-files
@@ -720,7 +720,7 @@ Modifies the behaviour of
 Backup files that would normally reside in
 .Pa /tmp
 are left there and not moved to the
-.Pa ~/.mg.d
+.Pa ~/.me.d
 directory.
 .It Ic line-number-mode
 Toggle whether the line number is displayed in the modeline.
@@ -1038,7 +1038,7 @@ Like
 .Ic zap-to-char
 but doesn't delete the target character.
 .El
-.Sh MG DIRED KEY BINDINGS
+.Sh ME DIRED KEY BINDINGS
 Specific key bindings are available in dired mode.
 .Pp
 .Bl -tag -width xxxxxxxxxxxxxxxxxx -offset indent -compact
@@ -1079,7 +1079,7 @@ dired-scroll-down
 .It M-v
 dired-scroll-up
 .El
-.Sh MG DIRED COMMANDS
+.Sh ME DIRED COMMANDS
 The following are a list of the commands specific to dired mode:
 .Bl -tag -width Ds
 .It Ic dired-create-directory
@@ -1132,9 +1132,9 @@ Close the current dired buffer.
 .El
 .Sh CONFIGURATION FILES
 There are two configuration files,
-.Pa .mg
+.Pa .me
 and
-.Pa .mg-TERM .
+.Pa .me-TERM .
 Here,
 .Ev TERM
 represents the name of the terminal type; e.g. if the terminal type
@@ -1142,7 +1142,7 @@ is set to
 .Dq vt100 ,
 .Nm
 will use
-.Pa .mg-vt100
+.Pa .me-vt100
 as a startup file.
 The terminal type startup file is used first.
 .Pp
@@ -1165,14 +1165,14 @@ or
 .Sq #
 as the first character of a line.
 .Sh FILES
-.Bl -tag -width /usr/share/doc/mg/tutorial -compact
-.It Pa ~/.mg
+.Bl -tag -width /usr/share/doc/me/tutorial -compact
+.It Pa ~/.me
 normal startup file
-.It Pa ~/.mg-TERM
+.It Pa ~/.me-TERM
 terminal-specific startup file
-.It Pa ~/.mg.d
+.It Pa ~/.me.d
 alternative backup file location
-.It Pa /usr/share/doc/mg/tutorial
+.It Pa /usr/share/doc/me/tutorial
 concise tutorial
 .El
 .Sh SEE ALSO

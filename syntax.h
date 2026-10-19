@@ -1,7 +1,7 @@
 /* Public domain. */
 
 /*
- * Syntax highlighting for mg.
+ * Syntax highlighting for me.
  *
  * Data-driven tokenizer: language rules are loaded from .syntax
  * files at runtime.  The tokenizer scans visible lines and assigns

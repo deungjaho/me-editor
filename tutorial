@@ -1,10 +1,10 @@
-The mg Tutorial
+The me Tutorial
 ---------------
 
-The mg editor is a public domain editor intended to loosely resemble GNU Emacs,
+The me editor is a public domain editor intended to loosely resemble GNU Emacs,
 while still retaining fast speed and a small memory footprint. 
 
-Most mg commands involve using the Control (sometimes labelled "Ctrl") or the 
+Most me commands involve using the Control (sometimes labelled "Ctrl") or the 
 Meta (sometimes labelled "Alt") key. We will use the following conventions in
 this tutorial:
 
@@ -42,12 +42,12 @@ M-b (Meta and b) to move forwards and backwards, one word at a time.
 
 Notice how the Ctrl and Meta key combinations perform related functions. C-f 
 moves one letter forward, whereas M-f moves one word forward. There are many
-key combinations in mg, where C-<chr> will perform one function and M-<chr>
+key combinations in me, where C-<chr> will perform one function and M-<chr>
 will perform a similar related function.
 
 Most probably by now you have moved passed the bottom of the text which was
-initially shown to you when you opened this document. mg redraws your terminal
-screen so that the cursor is in the middle. This is a feature of mg, which
+initially shown to you when you opened this document. me redraws your terminal
+screen so that the cursor is in the middle. This is a feature of me, which
 allows you to see the lines before and after the current cursor position. The
 same effect can be achieved manually.
 
@@ -92,7 +92,7 @@ The following is a summary of the movement commands we've learned so far:
 	M-<	Move to beginning of file.
 	M->	Move to end of file.
 
-Now that you've mastered the basics of moving around in mg, you can cause mg
+Now that you've mastered the basics of moving around in me, you can cause me
 to execute these commands multiple times. The way to do this is to type C-u
 followed by some digits followed by a movement command.
 
@@ -103,7 +103,7 @@ cursor motion commands. The only exception to this rule are C-v and M-v.
 When using these two commands with an argument, they move the cursor by that 
 many lines instead of pages.
 
-Cancelling mg Commands
+Cancelling me Commands
 ----------------------
 
 If you have started typing out a command that you didn't mean to finish, you
@@ -112,7 +112,7 @@ can use the C-g command to cancel the command immediately.
 >> For example, type C-u 50 and then type C-g to cancel the C-u command.
 >> Type Esc and then C-g to cancel the Esc key.
 
-In general, you can use C-g to stop any mg commands. You may type it multiple
+In general, you can use C-g to stop any me commands. You may type it multiple
 times if you wish. You should see the word "Quit" appear in the bottom of the
 screen when you type C-g indicating that a command was cancelled. 
 
@@ -148,7 +148,7 @@ To undo any operation, you can use C-_ (that's control-underscore).
 
 Now if you kill something that you didn't mean to, you can yank it back from
 the dead by using C-y. In general, when you kill something bigger than a single
-character, mg saves it in a buffer somewhere and you can restore it by using
+character, me saves it in a buffer somewhere and you can restore it by using
 C-y. This is useful for moving text around. You can kill text in one place,
 move your cursor to the new location and then use C-y to paste it there.
 
@@ -156,7 +156,7 @@ Search for Text
 ---------------
 
 To search for text, type C-s followed by the text you wish to search for. Note
-that as you start typing the characters, mg automatically searches as you type
+that as you start typing the characters, me automatically searches as you type
 the characters.
 
 To continue searching the text you're looking for, type C-s to find the next
@@ -213,7 +213,7 @@ Status Line
 At the bottom of your screen is a reverse highlighted line. This is the status
 line and lets you know some useful information about the file you're editing.
 
-On the status line, you should see "Mg: tutorial". This lets you know that 
+On the status line, you should see "Me: tutorial" or "-- tutorial". This lets you know that 
 you're editing a file named "tutorial". If you've edited this file and not 
 saved it, it should have a "**" to the left of those words. If this file is 
 read-only, you should see a "%%" to the left of those words. 
@@ -226,10 +226,10 @@ that your cursor is currently on. If you move the cursor around, you
 should see the line and column number change.
 
 In the middle of the screen, you should see the word "(fundamental)" which 
-indicates that the current editing mode is "fundamental-mode". The mg editor
+indicates that the current editing mode is "fundamental-mode". The me editor
 also supports a c-mode that is more suited to editing C code. There are also
 some other useful editing modes for different situations. See the man page 
-for mg(1) to learn about the various editing modes.
+for me(1) to learn about the various editing modes.
 
 Opening and Saving Files
 ------------------------
@@ -239,9 +239,9 @@ If you type a file name that doesn't already exist, a new file will be opened
 for you. If the file name already exists, then it will be opened for you and 
 you can begin editing it. Note that you do not need to type the whole file 
 name for an existing file. You can type part of the file name and then press
-the TAB key. If there is only file name that matches, mg will fill in the rest
-of the file name for you. If there are multiple files, mg will display that 
-the choice is ambiguous. If you type the TAB key again, mg will show you all 
+the TAB key. If there is only file name that matches, me will fill in the rest
+of the file name for you. If there are multiple files, me will display that 
+the choice is ambiguous. If you type the TAB key again, me will show you all 
 the available choices for file names.
 
 NOTE: If you type C-x f instead of C-x C-f, you can use C-g to cancel the
@@ -249,12 +249,12 @@ Set-Fill-Column command. You can also use C-g to cancel the C-x C-f command
 if you don't wish to open a new file.
 
 To save the file once you've edited it, use C-x C-s to save the file. When
-mg is done saving the file, you should see the words "Wrote /path/to/file"
+me is done saving the file, you should see the words "Wrote /path/to/file"
 in the bottom of your screen. In general, it is a good idea to save quite 
-often. When you save a file, mg saves a backup of the file with a tilde (~)
+often. When you save a file, me saves a backup of the file with a tilde (~)
 character at the end.
 
-If you decide to open a directory instead of a file, mg will transition into a
+If you decide to open a directory instead of a file, me will transition into a
 mode called dired. Dired fills a buffer with the contents of the selected
 directory, one file or sub-directory's details per line. Some basic file
 management functions can be performed on the files and sub-directories in the
@@ -271,12 +271,12 @@ There are more dired commands, see the man page for further information.
 Working with Buffers and Windows
 --------------------------------
 
-Once a file is loaded into mg, it is often referred to as a buffer.
+Once a file is loaded into me, it is often referred to as a buffer.
 
-The mg editor is capable of editing multiple buffers at the same time. When you
-open a second file with C-x C-f, the first buffer is still being edited by mg.
+The me editor is capable of editing multiple buffers at the same time. When you
+open a second file with C-x C-f, the first buffer is still being edited by me.
 
-Both buffers can be viewed simultaneously because mg can support several windows
+Both buffers can be viewed simultaneously because me can support several windows
 at the same time, each one displaying different text. To split a screen into two
 horizontal windows use C-x 2. To return to one window, use C-x 1 to close the
 other windows and only keep the current window.
@@ -288,7 +288,7 @@ other windows and only keep the current window.
 
 >> Use C-x 1 to restore back to one window.
 
-You can list all the buffers that are opened by mg by typing C-x C-b. The 
+You can list all the buffers that are opened by me by typing C-x C-b. The 
 screen should divide into two and the top window will list the buffers that
 are currently open. Use C-x o to switch to the top window, then use the arrow
 keys to move to the buffer you wish to switch to, and then type the Enter key to
@@ -307,8 +307,8 @@ type another buffer name or use C-g to cancel the operation.
 Extended Commands
 -----------------
 
-The mg editor has several extended commands, more than what can be covered
-by the Control and Meta keys. The mg editor gets around this by using what is
+The me editor has several extended commands, more than what can be covered
+by the Control and Meta keys. The me editor gets around this by using what is
 called the X (eXtend) command. There are two forms of this:
 
 	C-x	Character eXtension. Followed by one character.
@@ -316,7 +316,7 @@ called the X (eXtend) command. There are two forms of this:
 
 You've already seen C-x C-f and C-x C-s to open and save a file. There are
 other longer commands. For instance, you can also open a file by typing
-M-x find-file Enter. When you type a command using M-x, mg prompts you for
+M-x find-file Enter. When you type a command using M-x, me prompts you for
 the command at the bottom of the screen. You can type out the whole command
 if you wish, or you can type out part of the command and then use the TAB key
 for autocompleting the command.
@@ -324,23 +324,23 @@ for autocompleting the command.
 For instance, to replace text, you can type M-x repl TAB enter to execute 
 the replace-text command. To cancel this command, type C-g. 
 
-To see a list of all available mg(1) commands, consult the man page.
+To see a list of all available me(1) commands, consult the man page.
 
-Exiting mg
+Exiting me
 ----------
 
-To exit mg temporarily and return to the shell, use C-z. This will take you
-back to the command shell. To return back to mg, type fg in the shell and you
-will be returned to your mg session.
+To exit me temporarily and return to the shell, use C-z. This will take you
+back to the command shell. To return back to me, type fg in the shell and you
+will be returned to your me session.
 
-To exit mg permanently, type C-x C-c. If you have any unsaved buffers, you 
+To exit me permanently, type C-x C-c. If you have any unsaved buffers, you 
 will be asked if you wish to save them or not. 
 
 Conclusion
 ----------
 
-This tutorial is meant to get new users up and running with mg. There is more
-information available via the mg(1) man page. If you have any suggestions for
+This tutorial is meant to get new users up and running with me. There is more
+information available via the me(1) man page. If you have any suggestions for
 improvement, please don't hesitate to drop a message or (better still) submit
 a diff to tech@openbsd.org.
 

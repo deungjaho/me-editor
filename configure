@@ -252,7 +252,7 @@ fi
 
 mandir="$prefix/man"
 
-prog="mg"
+prog="me"
 log=0
 static=0
 terminfo=0
@@ -556,7 +556,7 @@ OBJS =	autoexec.o basic.o bell.o buffer.o cinfo.o dir.o display.o \\
 	version.o window.o word.o yank.o cmode.o cscope.o dired.o \\
 	grep.o tags.o fparseln.o fstatat.o futimens.o getline.o \\
 	reallocarray.o strlcat.o strlcpy.o strndup.o strtonum.o \\
-	interpreter.o extensions.o utf8.o
+	interpreter.o extensions.o utf8.o syntax.o
 
 EOF
 
@@ -590,7 +590,7 @@ install:
 	install -d \${DESTDIR}\${PREFIX}/bin
 	install -d \${DESTDIR}\${MANDIR}/man1
 	install -c -s -m 755 \${PROG} \${DESTDIR}\${PREFIX}/bin
-	install -c -m 644 mg.1 \${DESTDIR}\${MANDIR}/man1/\${PROG}.1
+	install -c -m 644 me.1 \${DESTDIR}\${MANDIR}/man1/\${PROG}.1
 
 test:
 	echo "No tests"

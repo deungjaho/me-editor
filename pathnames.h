@@ -6,6 +6,7 @@
  *	standard path names
  */
 
-#define	_PATH_MG_DIR		"~/.mg.d"
-#define	_PATH_MG_STARTUP	"%s/.mg"
-#define	_PATH_MG_TERM		"%s/.mg-%s"
+#define	_PATH_ME_DIR		"~/.me.d"
+#define	_PATH_ME_STARTUP	"%s/.me"
+#define	_PATH_ME_TERM		"%s/.me-%s"
+#define	_PATH_ME_SYNTAX		"%s/.me-syntax/%s.syntax"

@@ -16,7 +16,7 @@
  * At the moment there is no manual page reference to this file. The code below
  * is liable to change, so use at your own risk!
  *
- * If you do want to do some testing, you can add some lines to your .mg file
+ * If you do want to do some testing, you can add some lines to your .me file
  * like:
  * 
  * 1. Give multiple arguments to a function that usually would accept only one:
