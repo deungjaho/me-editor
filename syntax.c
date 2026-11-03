@@ -800,6 +800,8 @@ syntax_match_dired(struct line *lp, char *hue, int ncol)
     const char *text = lp->l_text;
     int textlen = llength(lp);
 
+    if (hue == NULL || ncol <= 0)
+        return;
     memset(hue, SCOLOR_DEFAULT, textlen);
 
     /* Skip leading spaces to find permission chars */
@@ -944,6 +946,13 @@ syntax_resync(struct buffer *bp, struct line *lp)
     }
 }
 
+static int
+syn_is_dired(struct buffer *bp)
+{
+    return (bp->b_modes[bp->b_nmodes] != NULL &&
+        strcmp(bp->b_modes[bp->b_nmodes]->p_name, "dired") == 0);
+}
+
 /* ---- main tokenizer ---- */
 
 void
@@ -952,6 +961,10 @@ syntax_match_line(struct buffer *bp, struct line *prev, struct line *lp,
 {
     if (bp == NULL || lp == NULL)
         return;
+    if (syn_is_dired(bp)) {
+        syntax_match_dired(lp, hue, ncol);
+        return;
+    }
     if (prev != NULL && prev != bp->b_headp &&
         prev->l_synstate == SYNSTATE_STALE)
         syntax_sync_lookback(bp, lp);
