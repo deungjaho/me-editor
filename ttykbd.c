@@ -79,12 +79,11 @@ ttykeymapinit(void)
 	dobindkey(fundamental_map, "comment-line", "\\e[47;9u");  /* CSI u Cmd-/ */
 	dobindkey(fundamental_map, "comment-line", "\\e[59;3u");  /* Alt-; in CSI u */
 
-	/* Ctrl-Shift-/ sends CSI u with shift modifier (e.g. \e[47;6u or \e[31;2u or \e[47;2u); bind to redo */
+	/* Ctrl-Shift-/ sends CSI u (\e[47;6u or \e[63;6u); xterm
+	 * modifyOtherKeys sequences are normalized to CSI u in getkey */
 	dobindkey(fundamental_map, "redo", "\\e[47;6u");
-	dobindkey(fundamental_map, "redo", "\\e[47;2u");
 	dobindkey(fundamental_map, "redo", "\\e[31;6u");
-	dobindkey(fundamental_map, "redo", "\\e[63;6u"); /* ? with Ctrl */
-	dobindkey(fundamental_map, "redo", "\\e[63;2u"); /* ? with Shift */
+	dobindkey(fundamental_map, "redo", "\\e[63;6u");
 	dobindkey(fundamental_map, "redo", "\\e_");     /* M-_ (standard Emacs redo) */
 
 	/* Bind NBSP (Option-Space on macOS Cocoa terminal) to set-mark-command */
@@ -100,6 +99,15 @@ ttykeymapinit(void)
 	if (keypad_xmit)
 		/* turn on keypad */
 		putpad(keypad_xmit, 1);
+
+	/*
+	 * Ask terminals that support it to report modified keys
+	 * unambiguously: xterm modifyOtherKeys level 1 (only combos with no
+	 * legacy byte form change) and kitty disambiguate (all modified
+	 * keys become CSI u, translated back in getkey).  Terminals that
+	 * support neither ignore these.
+	 */
+	(void)fputs("\033[>4;1m\033[>1u", stdout);
 }
 
 /*
@@ -108,6 +116,8 @@ ttykeymapinit(void)
 void
 ttykeymaptidy(void)
 {
+	/* restore keyboard reporting modes pushed in ttykeymapinit */
+	(void)fputs("\033[<u\033[>4;0m", stdout);
 	if (keypad_local)
 		/* turn off keypad */
 		putpad(keypad_local, 1);

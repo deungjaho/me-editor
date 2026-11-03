@@ -28,8 +28,11 @@ char	 prompt[PROMPTL] = "", *promptp = prompt;
 static int mgwrap(PF, int, int);
 
 static int		 use_metakey = TRUE;
-static int		 pushed = FALSE;
-static int		 pushedc;
+
+#define NPUSH	20
+
+static int		 pushedq[NPUSH];
+static int		 pushedn;
 
 struct map_element	*ele;
 struct key		 key;
@@ -69,16 +72,198 @@ void
 ungetkey(int c)
 {
 	/* Meta-key reassembly disabled for UTF-8 compatibility. */
-	pushedc = c;
-	pushed = TRUE;
+	if (pushedn < NPUSH)
+		pushedq[pushedn++] = c;
+}
+
+static int
+nextkey(void)
+{
+	if (pushedn > 0)
+		return (pushedq[--pushedn]);
+	return (ttgetc());
+}
+
+static int
+keyavail(void)
+{
+	return (pushedn > 0 || charswaiting() > 0 || ttwait(20) == FALSE);
+}
+
+/*
+ * Encode cp as UTF-8 and push it back, first byte popped first.
+ */
+static void
+unget_utf8(int cp)
+{
+	unsigned char	b[4];
+	int		i = 0;
+
+	if (cp < 0x80) {
+		ungetkey(cp);
+		return;
+	}
+	if (cp < 0x800)
+		b[i++] = 0xc0 | (cp >> 6);
+	else if (cp < 0x10000) {
+		b[i++] = 0xe0 | (cp >> 12);
+		b[i++] = 0x80 | ((cp >> 6) & 0x3f);
+	} else {
+		b[i++] = 0xf0 | (cp >> 18);
+		b[i++] = 0x80 | ((cp >> 12) & 0x3f);
+		b[i++] = 0x80 | ((cp >> 6) & 0x3f);
+	}
+	b[i++] = 0x80 | (cp & 0x3f);
+	while (i > 0)
+		ungetkey(b[--i]);
+}
+
+/*
+ * Map a CSI-u codepoint sent with ctrl to its legacy control byte, -1 if
+ * there is no legacy representation.
+ */
+static int
+ctrl_code(int cp)
+{
+	if (cp < 0x20)
+		return (cp);
+	if ((cp >= 'a' && cp <= 'z') || (cp >= 'A' && cp <= 'Z'))
+		return (cp & 0x1f);
+	switch (cp) {
+	case ' ': case '@': case '2':
+		return (0x00);
+	case '[':
+		return (0x1b);
+	case '\\':
+		return (0x1c);
+	case ']':
+		return (0x1d);
+	case '^': case '6':
+		return (0x1e);
+	case '_': case '-': case '/':
+		return (0x1f);
+	case '?': case '8':
+		return (0x7f);
+	}
+	return (-1);
+}
+
+static void
+unget_num(int v)
+{
+	int	t[8], n = 0, i;
+
+	do {
+		t[n++] = '0' + v % 10;
+		v /= 10;
+	} while (v > 0);
+	for (i = 0; i < n; i++)
+		ungetkey(t[i]);	/* LSB first: pops back out as MSB first */
+}
+
+/*
+ * The terminal sent ESC [ ... : try to read a kitty CSI-u event
+ * (CSI cp;mod u) or an xterm modifyOtherKeys event (CSI 27;mod;cp ~) and
+ * translate it into the byte stream the keymaps understand.  The leading
+ * ESC was consumed by getkey; '[' is still pending.  Returns the key to
+ * dispatch, or -1 after pushing bytes back: unrecognized input is
+ * replayed raw, recognized events without a legacy byte form are
+ * replayed normalized to CSI u so a single set of bindings covers both
+ * protocols.
+ */
+static int
+csi_key(void)
+{
+	int	 pbuf[16];
+	int	 pl = 0, term = 0;
+	int	 c, i;
+	long	 f[3] = {0, 0, 0};
+	int	 nf = 0, cp, m;
+
+	if ((c = nextkey()) != '[') {
+		ungetkey(c);
+		return (-1);
+	}
+	while (pl < 16 && keyavail()) {
+		c = nextkey();
+		if (c == 'u' || c == '~') {
+			term = c;
+			break;
+		}
+		pbuf[pl++] = c;
+	}
+	if (term == 0 || pl == 0)
+		goto replay;
+	for (i = 0; i < pl && nf < 3; i++) {
+		c = pbuf[i];
+		if (c >= '0' && c <= '9')
+			f[nf] = f[nf] * 10 + (c - '0');
+		else if (c == ';')
+			nf++;
+		else if (c == ':')
+			while (i + 1 < pl && pbuf[i + 1] != ';')
+				i++;
+		else
+			goto replay;
+	}
+	if (term == 'u') {
+		if (f[0] <= 0 || f[0] > 0x10ffff)
+			goto replay;
+		cp = (int)f[0];
+		m = nf > 0 ? (int)f[1] - 1 : 0;
+	} else {
+		if (f[0] != 27 || nf < 2)
+			goto replay;
+		m = (int)f[1] - 1;
+		cp = (int)f[2];
+	}
+	if (m < 0)
+		m = 0;
+	if (m & ~7)
+		goto reemit;	/* super/hyper/meta: explicit bindings only */
+	if (m & 2) {		/* alt */
+		if ((m & 4) && (m & 1))
+			goto reemit;
+		c = (m & 4) ? ctrl_code(cp) : cp;
+		if (c < 0)
+			goto reemit;
+		unget_utf8(c);
+		return (CCHR('['));
+	}
+	if (m & 4) {		/* ctrl */
+		if (m & 1)
+			goto reemit;	/* shift+ctrl: explicit bindings */
+		c = ctrl_code(cp);
+		if (c < 0)
+			goto reemit;
+		return (c);
+	}
+	if (cp < 128)
+		return (cp);		/* plain event, e.g. \e[27u is ESC */
+	unget_utf8(cp);
+	return (nextkey());
+reemit:
+	ungetkey('u');
+	unget_num(m + 1);
+	ungetkey(';');
+	unget_num(cp);
+	ungetkey('[');
+	return (-1);
+replay:
+	if (term != 0)
+		ungetkey(term);
+	while (pl > 0)
+		ungetkey(pbuf[--pl]);
+	ungetkey('[');
+	return (-1);
 }
 
 int
 getkey(int flag)
 {
-	int	 c;
+	int	 c, c2, c3, i;
 
-	if (flag && !pushed) {
+	if (flag && pushedn == 0) {
 		if (prompt[0] != '\0' && ttwait(2000)) {
 			/* avoid problems with % */
 			ewprintf("%s", prompt);
@@ -89,11 +274,57 @@ getkey(int flag)
 		if (promptp > prompt)
 			*(promptp - 1) = ' ';
 	}
-	if (pushed) {
-		c = pushedc;
-		pushed = FALSE;
-	} else
-		c = ttgetc();
+	c = nextkey();
+	for (;;) {
+		/*
+		 * macOS IMEs commit U+200B (E2 80 8B) when they swallow a
+		 * shortcut; drop the sequence.
+		 */
+		if (c == 0xE2) {
+			c2 = nextkey();
+			if (c2 != 0x80) {
+				ungetkey(c2);
+				break;
+			}
+			c3 = nextkey();
+			if (c3 == 0x8B) {
+				c = nextkey();
+				continue;
+			}
+			ungetkey(c3);
+			ungetkey(c2);
+			break;
+		}
+		/*
+		 * ESC followed by a multi-byte char: the IME translated a
+		 * meta shortcut into committed text (e.g. Option+Shift+.
+		 * sending ESC + U+300B).  No meta binding uses non-ASCII
+		 * keys, so swallow ESC and the whole sequence; leaving the
+		 * tail bytes behind would insert them as \ooo garbage.
+		 */
+		if (c == CCHR('[') &&
+		    (pushedn > 0 || charswaiting() > 0 || ttwait(20) == FALSE)) {
+			c2 = nextkey();
+			if (utf8_seqlen((unsigned char)c2) >= 2) {
+				for (i = utf8_seqlen((unsigned char)c2) - 1;
+				    i > 0; i--)
+					(void)nextkey();
+				c = nextkey();
+				continue;
+			}
+			if (c2 == '[' && keyavail()) {
+				ungetkey(c2);
+				c3 = csi_key();
+				if (c3 >= 0) {
+					c = c3;
+					break;
+				}
+				break;
+			}
+			ungetkey(c2);
+		}
+		break;
+	}
 
 	if (bs_map) {
 		if (c == CCHR('H'))
@@ -344,6 +575,9 @@ selfinsert(int f, int n)
 	/* Assemble full UTF-8 sequence if lead byte */
 	if ((unsigned char)c >= 0x80) {
 		int seqlen = utf8_seqlen((unsigned char)c);
+		/* orphan continuation byte: lead was consumed elsewhere */
+		if (seqlen == 0)
+			return (TRUE);
 		if (seqlen > 1) {
 			ubuf[0] = c;
 			for (i = 1; i < seqlen; i++)
