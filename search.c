@@ -212,10 +212,12 @@ isearch(int dir)
 			/* FALLTHRU */
 		case CCHR('M'):
 			srch_lastdir = dir;
-			curwp->w_markp = clp;
-			curwp->w_marko = cbo;
-			curwp->w_markline = cdotline;
-			ewprintf("Mark set");
+			if (automark) {
+				curwp->w_markp = clp;
+				curwp->w_marko = cbo;
+				curwp->w_markline = cdotline;
+				ewprintf("Mark set");
+			}
 			return (TRUE);
 		case CCHR('G'):
 			if (success != TRUE) {
@@ -361,10 +363,12 @@ isearch(int dir)
 		default:
 			if (ISCTRL(c)) {
 				ungetkey(c);
-				curwp->w_markp = clp;
-				curwp->w_marko = cbo;
-				curwp->w_markline = cdotline;
-				ewprintf("Mark set");
+				if (automark) {
+					curwp->w_markp = clp;
+					curwp->w_marko = cbo;
+					curwp->w_markline = cdotline;
+					ewprintf("Mark set");
+				}
 				curwp->w_rflag |= WFMOVE;
 				return (TRUE);
 			}

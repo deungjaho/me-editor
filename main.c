@@ -41,6 +41,7 @@ int		 startrow;			/* row to start		*/
 int		 doaudiblebell;			/* audible bell toggle	*/
 int		 dovisiblebell;			/* visible bell toggle	*/
 int		 dblspace;			/* sentence end #spaces	*/
+int		 automark;			/* auto mark on jumps	*/
 int		 allbro;			/* all buffs read-only	*/
 int		 batch;				/* for regress tests	*/
 struct buffer	*curbp;				/* current buffer	*/
@@ -173,6 +174,7 @@ main(int argc, char **argv)
 	ttykeymapinit();	/* Symbols, bindings.		*/
 	bellinit();		/* Audible and visible bell.	*/
 	dblspace = 1;		/* two spaces for sentence end. */
+	automark = 0;		/* set mark when jumping/searching. */
 
 	/*
 	 * doing update() before reading files causes the error messages from

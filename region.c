@@ -394,8 +394,8 @@ region_put_data(const char *buf, int len)
 
 /*
  * Mark whole buffer by first traversing to end-of-buffer
- * and then to beginning-of-buffer. Mark, dot are implicitly
- * set to eob, bob respectively during traversal.
+ * and then to beginning-of-buffer. The mark is set explicitly
+ * at eob so this works regardless of the auto-mark toggle.
  */
 int
 markbuffer(int f, int n)
@@ -403,6 +403,7 @@ markbuffer(int f, int n)
 	if (gotoeob(f,n) == FALSE)
 		return (FALSE);
 	(void) clearmark(f, n);
+	isetmark();
 	if (gotobob(f,n) == FALSE)
 		return (FALSE);
 	return (TRUE);

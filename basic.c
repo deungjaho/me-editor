@@ -134,7 +134,7 @@ forwchar(int f, int n)
 int
 gotobob(int f, int n)
 {
-	if (!curwp->w_markp)
+	if (automark && !curwp->w_markp)
 		(void) setmark(f, n);
 	curwp->w_dotp = bfirstlp(curbp);
 	curwp->w_doto = 0;
@@ -161,7 +161,7 @@ gotoeob(int f, int n)
 	int		 ln;
 	struct line	*lp;
 
-	if (!curwp->w_markp)
+	if (automark && !curwp->w_markp)
 		(void) setmark(f, n);
 	curwp->w_dotp = blastlp(curbp);
 	curwp->w_doto = llength(curwp->w_dotp);
@@ -484,6 +484,21 @@ setmark(int f, int n)
 	isetmark();
 	curwp->w_rflag |= WFFULL;
 	ewprintf("Mark set");
+	return (TRUE);
+}
+
+/*
+ * Toggle automatic mark-setting on buffer jumps and incremental
+ * search exits (auto-mark-mode).
+ */
+int
+automarkmode(int f, int n)
+{
+	if (f & FFARG)
+		automark = n > 0;
+	else
+		automark = !automark;
+	ewprintf("Auto-mark %sabled", automark ? "en" : "dis");
 	return (TRUE);
 }
 
