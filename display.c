@@ -717,7 +717,7 @@ update(int modelinecolor)
 	struct mgwin	*wp;
 	struct video	*vp1;
 	struct video	*vp2;
-	int	 c, i, j;
+	int	 i, j;
 	int	 hflag;
 	int	 currow, curcol;
 	int	 offs, size;
@@ -1105,7 +1105,7 @@ void
 uline(int row, struct video *vvp, struct video *pvp)
 {
 	int	 col, first, last, erase_from, k, w;
-	char	*vslot, *pslot;
+	char	*vslot;
 	int	 nbflag;
 
 	/*
@@ -1316,7 +1316,7 @@ get_git_branch(const char *dir_path, char *branch, size_t maxlen)
 void
 modeline(struct mgwin *wp, int modelinecolor)
 {
-	int	n, md;
+	int	n;
 	struct buffer *bp;
 
 	n = wp->w_toprow + wp->w_ntrows;	/* Location.		 */

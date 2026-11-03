@@ -1315,6 +1315,7 @@ syntax_detect(const char *filename)
 {
     const char *ext;
     const char *lang;
+    struct syntax_table *st;
     char path[256];
     const char *home;
 
@@ -1402,7 +1403,7 @@ syntax_detect(const char *filename)
 
 found:
     /* already loaded? */
-    struct syntax_table *st = syntax_find(lang);
+    st = syntax_find(lang);
     if (st != NULL)
         return st;
 

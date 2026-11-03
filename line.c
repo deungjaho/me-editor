@@ -259,7 +259,7 @@ linsert_buf(const char *buf, int len)
 {
 	struct line	*lp1;
 	struct mgwin	*wp;
-	int		 doto, i;
+	int		 doto;
 	int		 s;
 
 	if (len <= 0)
