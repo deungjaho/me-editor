@@ -845,7 +845,7 @@ update(int modelinecolor)
 				vscreen[i]->v_flag &= ~VFEXT;
 			vtmove(i, wp->w_leftcol - this_lbound);
 			ensure_hue_line(lp);
-			syntax_match_line(lback(lp), lp, g_hue, ncol);
+			syntax_match_line(wp->w_bufp, lback(lp), lp, g_hue, ncol);
 			apply_region_hue(lp, wp->w_dotline);
 			for (j = 0; j < llength(lp); )
 				vtputchar(lp, &j, wp, g_hue);
@@ -876,7 +876,7 @@ update(int modelinecolor)
 				vtmove(i, wp->w_leftcol - this_lbound);
 				if (lp != wp->w_bufp->b_headp) {
 					ensure_hue_line(lp);
-					syntax_match_line(lback(lp), lp,
+					syntax_match_line(wp->w_bufp, lback(lp), lp,
 					    g_hue, ncol);
 					apply_region_hue(lp, line_num);
 					for (j = 0; j < llength(lp); )

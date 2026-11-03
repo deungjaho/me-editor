@@ -885,7 +885,7 @@ syntax_sync_lookback(struct buffer *bp, struct line *target_lp)
     while (top > 0) {
         struct line *lp = stack[--top];
         char dummy_hue[1];
-        syntax_match_line(prev, lp, dummy_hue, 0);
+        syntax_match_line(bp, prev, lp, dummy_hue, 0);
         prev = lp;
     }
     if (stack)
@@ -895,7 +895,7 @@ syntax_sync_lookback(struct buffer *bp, struct line *target_lp)
 /* ---- main tokenizer ---- */
 
 void
-syntax_match_line(struct line *prev, struct line *lp,
+syntax_match_line(struct buffer *bp, struct line *prev, struct line *lp,
                   char *hue, int ncol)
 {
     struct syntax_table *st;
@@ -909,8 +909,8 @@ syntax_match_line(struct line *prev, struct line *lp,
     if (ncol > 0)
         memset(hue, SCOLOR_DEFAULT, textlen);
 
-    st = curbp ? curbp->b_syntax : NULL;
-    if (st == NULL || (curbp->b_flag & BFSYNOFF))
+    st = bp ? bp->b_syntax : NULL;
+    if (st == NULL || (bp->b_flag & BFSYNOFF))
         return;
 
     /* recover state from previous line */
