@@ -75,6 +75,55 @@ usage(void)
 	exit(1);
 }
 
+/*
+ * Strip a trailing line/column designator from a file argument and set
+ * startrow.  Accepts file:line, file:line:col and file://path[#][L]n[C]m
+ * as produced by TUIs and terminals.
+ */
+static void
+split_lineno(char *arg)
+{
+	char	*s, *e;
+	long	 v, w;
+
+	if (strncmp(arg, "file://", 7) == 0)
+		(void)memmove(arg, arg + 7, strlen(arg + 6));
+
+	if ((s = strrchr(arg, '#')) != NULL && s != arg) {
+		e = s + 1;
+		if (*e == 'L' || *e == 'l')
+			e++;
+		v = strtol(e, &e, 10);
+		if (v > 0 && v <= INT_MAX &&
+		    (*e == '\0' ||
+		    ((*e == 'C' || *e == 'c' || *e == ':') &&
+		    (w = strtol(e + 1, &e, 10)) > 0 && *e == '\0'))) {
+			startrow = (int)v;
+			*s = '\0';
+		}
+		return;
+	}
+
+	if ((s = strrchr(arg, ':')) == NULL || s == arg ||
+	    !(s[1] >= '0' && s[1] <= '9'))
+		return;
+	v = strtol(s + 1, &e, 10);
+	if (*e != '\0')
+		return;
+	*s = '\0';
+	if ((s = strrchr(arg, ':')) != NULL && s != arg &&
+	    s[1] >= '0' && s[1] <= '9') {
+		w = strtol(s + 1, &e, 10);
+		if (*e == '\0' && w > 0 && w <= INT_MAX) {
+			*s = '\0';
+			startrow = (int)w;
+			return;
+		}
+	}
+	if (v > 0 && v <= INT_MAX)
+		startrow = (int)v;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -222,6 +271,7 @@ main(int argc, char **argv)
 			startrow = lval;
 		} else {
 notnum:
+			split_lineno(argv[i]);
 			cp = adjustname(argv[i], FALSE);
 			if (cp != NULL) {
 				if (nfiles == 1)
