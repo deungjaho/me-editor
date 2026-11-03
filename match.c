@@ -185,6 +185,17 @@ smart_backdel(int f, int n)
  * Returns 1 if found, with out_lp and out_off set to the matching location,
  * and out_lineno set to the buffer line number. Returns 0 otherwise.
  */
+/*
+ * True when a byte's syntax hue marks it as inside a string or comment,
+ * where delimiters are not structural.
+ */
+static int
+ignorable_hue(char h)
+{
+	h = HUE_BASE(h);
+	return (h == SCOLOR_STRING || h == SCOLOR_COMMENT);
+}
+
 int
 find_match_paren(struct line *cur_lp, int cur_off,
                  struct line **out_lp, int *out_off, int *out_lineno)
@@ -192,7 +203,8 @@ find_match_paren(struct line *cur_lp, int cur_off,
 	char ch, target, partner;
 	int dir; /* +1 for forward, -1 for backward */
 	int i, depth;
-	struct line *lp;
+	struct line *lp, *hue_lp;
+	const char *hue;
 	int off;
 	int line_no;
 
@@ -242,15 +254,26 @@ find_match_paren(struct line *cur_lp, int cur_off,
 	if (dir == 0)
 		return (0);
 
+	/* A delimiter inside a string or comment is not structural. */
+	{
+		const char *h = syntax_line_hue(curbp, cur_lp);
+		if (h != NULL && cur_off < llength(cur_lp) &&
+		    ignorable_hue(h[cur_off]))
+			return (0);
+	}
+
 	/* Search loop */
 	lp = cur_lp;
 	off = cur_off;
 	depth = 0;
 	line_no = curwp->w_dotline;
+	hue_lp = NULL;
+	hue = NULL;
 
 	if (dir == 1) {
 		/* Forward search */
 		for (;;) {
+			char c;
 			off++;
 			while (off >= llength(lp)) {
 				lp = lforw(lp);
@@ -259,7 +282,13 @@ find_match_paren(struct line *cur_lp, int cur_off,
 					return (0);
 				off = 0;
 			}
-			char c = lgetc(lp, off);
+			if (lp != hue_lp) {
+				hue = syntax_line_hue(curbp, lp);
+				hue_lp = lp;
+			}
+			if (hue != NULL && ignorable_hue(hue[off]))
+				continue;
+			c = lgetc(lp, off);
 			if (c == target) {
 				depth++;
 			} else if (c == partner) {
@@ -281,9 +310,14 @@ find_match_paren(struct line *cur_lp, int cur_off,
 				if (lp == curbp->b_headp)
 					return (0);
 				off = llength(lp);
+				hue = syntax_line_hue(curbp, lp);
+				hue_lp = lp;
 			} else {
+				char c;
 				off--;
-				char c = lgetc(lp, off);
+				if (hue != NULL && ignorable_hue(hue[off]))
+					continue;
+				c = lgetc(lp, off);
 				if (c == target) {
 					depth++;
 				} else if (c == partner) {

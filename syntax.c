@@ -953,6 +953,33 @@ syn_is_dired(struct buffer *bp)
         strcmp(bp->b_modes[bp->b_nmodes]->p_name, "dired") == 0);
 }
 
+/*
+ * Per-byte hue array for lp in an internal scratch buffer, or NULL when
+ * the buffer has no syntax.  Overwritten by the next call.
+ */
+const char *
+syntax_line_hue(struct buffer *bp, struct line *lp)
+{
+    static char *buf;
+    static int cap;
+    int len;
+
+    if (bp == NULL || lp == NULL || bp->b_syntax == NULL ||
+        (bp->b_flag & BFSYNOFF))
+        return NULL;
+    len = llength(lp);
+    if (len > cap) {
+        free(buf);
+        if ((buf = malloc(len)) == NULL) {
+            cap = 0;
+            return NULL;
+        }
+        cap = len;
+    }
+    syntax_match_line(bp, lback(lp), lp, buf, 1);
+    return buf;
+}
+
 /* ---- main tokenizer ---- */
 
 void
