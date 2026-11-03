@@ -438,13 +438,16 @@ d_findfile(int f, int n)
 	struct buffer	*bp;
 	int		 s;
 	char		 fname[NFILEN];
+	char		*adjf;
 
 	if ((s = d_makename(curwp->w_dotp, fname, sizeof(fname))) == ABORT)
 		return (FALSE);
+	if ((adjf = adjustname(fname, TRUE)) == NULL)
+		return (FALSE);
 	if (s == TRUE)
-		bp = dired_(fname);
+		bp = dired_(adjf);
 	else
-		bp = findbuffer(fname);
+		bp = findbuffer(adjf);
 	if (bp == NULL)
 		return (FALSE);
 	curbp = bp;
@@ -452,20 +455,23 @@ d_findfile(int f, int n)
 		return (FALSE);
 	if (bp->b_fname[0] != 0)
 		return (TRUE);
-	return (readin(fname));
+	return (readin(adjf));
 }
 
 int
 d_ffotherwindow(int f, int n)
 {
 	char		 fname[NFILEN];
+	char		*adjf;
 	int		 s;
 	struct buffer	*bp;
 	struct mgwin	*wp;
 
 	if ((s = d_makename(curwp->w_dotp, fname, sizeof(fname))) == ABORT)
 		return (FALSE);
-	if ((bp = (s ? dired_(fname) : findbuffer(fname))) == NULL)
+	if ((adjf = adjustname(fname, TRUE)) == NULL)
+		return (FALSE);
+	if ((bp = (s ? dired_(adjf) : findbuffer(adjf))) == NULL)
 		return (FALSE);
 	if ((wp = popbuf(bp, WNONE)) == NULL)
 		return (FALSE);
@@ -473,7 +479,7 @@ d_ffotherwindow(int f, int n)
 	curwp = wp;
 	if (bp->b_fname[0] != 0)
 		return (TRUE);	/* never true for dired buffers */
-	return (readin(fname));
+	return (readin(adjf));
 }
 
 int
@@ -759,7 +765,7 @@ d_exec(int space, struct buffer *bp, const char *input, const char *cmd, ...)
 	}
 
 	newa.sa_handler = reaper;
-	newa.sa_flags = 0;
+	newa.sa_flags = SA_RESTART;
 	if (sigaction(SIGCHLD, &newa, NULL) == -1)
 		goto out;
 
@@ -776,7 +782,8 @@ d_exec(int space, struct buffer *bp, const char *input, const char *cmd, ...)
 		dup2(fds[1], STDOUT_FILENO);
 		dup2(fds[1], STDERR_FILENO);
 		if (execvp(argv[0], argv) == -1)
-			ewprintf("Can't exec %s: %s", argv[0], strerror(errno));
+			dprintf(STDERR_FILENO, "Can't exec %s: %s",
+			    argv[0], strerror(errno));
 		exit(1);
 		break;
 	default: /* Parent */
@@ -1034,13 +1041,16 @@ d_view_file(int f, int n)
 	struct buffer	*bp;
 	int		 s;
 	char		 fname[NFILEN];
+	char		*adjf;
 
 	if ((s = d_makename(curwp->w_dotp, fname, sizeof(fname))) == ABORT)
 		return (FALSE);
+	if ((adjf = adjustname(fname, TRUE)) == NULL)
+		return (FALSE);
 	if (s == TRUE)
-		bp = dired_(fname);
+		bp = dired_(adjf);
 	else
-		bp = findbuffer(fname);
+		bp = findbuffer(adjf);
 	if (bp == NULL)
 		return (FALSE);
 	curbp = bp;
@@ -1052,7 +1062,7 @@ d_view_file(int f, int n)
 	}
 	if ((bp->b_modes[1] = name_mode("view")) != NULL)
 		bp->b_nmodes = 1;
-	if (readin(fname) != TRUE)
+	if (readin(adjf) != TRUE)
 		return (FALSE);
 	bp->b_flag |= BFREADONLY;
 	return (TRUE);
