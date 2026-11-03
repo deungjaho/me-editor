@@ -322,6 +322,7 @@ struct undo_rec {
 	} type;
 	struct region	 region;
 	int		 pos;
+	int		 u_flags;
 	char		*content;
 };
 

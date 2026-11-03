@@ -14,6 +14,12 @@
 
 #define MAX_FREE_RECORDS	32
 
+/* u_flags: record was written while replaying an undo (redo material) */
+#define U_INVERSE	0x01
+
+#define IS_CONTENT(t) \
+    ((t) == INSERT || (t) == DELETE || (t) == DELREG)
+
 /*
  * Local variables
  */
@@ -21,6 +27,8 @@ static struct undoq		 undo_free;
 static int			 undo_free_num;
 static int			 boundary_flag = TRUE;
 static int			 undo_enable_flag = TRUE;
+static int			 undoing;	/* replaying undo: mark recs */
+static int			 replaying;	/* inside undo/redo apply */
 
 /*
  * Local functions
@@ -29,6 +37,7 @@ static int find_dot(struct line *, int);
 static int find_lo(int, struct line **, int *, int *);
 static struct undo_rec *new_undo_record(void);
 static int drop_oldest_undo_record(void);
+static void drop_inverse_records(void);
 
 /*
  * find_dot, find_lo()
@@ -281,7 +290,8 @@ undo_add_insert(struct line *lp, int offset, int size)
 	 * We try to reuse the last undo record to `compress' things.
 	 */
 	rec = TAILQ_FIRST(&curbp->b_undo);
-	if (rec != NULL && rec->type == INSERT) {
+	if (rec != NULL && rec->type == INSERT &&
+	    !(rec->u_flags & U_INVERSE)) {
 		if (rec->pos + rec->region.r_size == pos) {
 			rec->region.r_size += reg.r_size;
 			return (TRUE);
@@ -291,9 +301,13 @@ undo_add_insert(struct line *lp, int offset, int size)
 	/*
 	 * We couldn't reuse the last undo record, so prepare a new one.
 	 */
+	if (!undoing && !replaying)
+		drop_inverse_records();
 	rec = new_undo_record();
 	rec->pos = pos;
 	rec->type = INSERT;
+	if (undoing)
+		rec->u_flags |= U_INVERSE;
 	memmove(&rec->region, &reg, sizeof(struct region));
 	rec->content = NULL;
 
@@ -336,12 +350,16 @@ undo_add_delete(struct line *lp, int offset, int size, int isreg)
 				undo_add_boundary(FFRAND, 1);
 		}
 	}
+	if (!undoing && !replaying)
+		drop_inverse_records();
 	rec = new_undo_record();
 	rec->pos = pos;
 	if (isreg)
 		rec->type = DELREG;
 	else
 		rec->type = DELETE;
+	if (undoing)
+		rec->u_flags |= U_INVERSE;
 	memmove(&rec->region, &reg, sizeof(struct region));
 	do {
 		rec->content = malloc(reg.r_size + 1);
@@ -444,83 +462,91 @@ undo_dump(int f, int n)
 }
 
 /*
- * After the user did action1, then action2, then action3:
- *
- *	[action3] <--- Undoptr
- *	[action2]
- *	[action1]
- *	 ------
- *	 [undo]
- *
- * After undo:
- *
- *	[undo of action3]
- *	[action2] <--- Undoptr
- *	[action1]
- *	 ------
- *	 [undo]
- *
- * After another undo:
- *
- *
- *	[undo of action2]
- *	[undo of action3]
- *	[action1]  <--- Undoptr
- *	 ------
- *	 [undo]
- *
- * Note that the "undo of actionX" have no special meaning. Only when
- * we undo a deletion, the insertion will be recorded just as if it
- * was typed on the keyboard. Resulting in the inverse operation being
- * saved in the list.
- *
- * If undoptr reaches the bottom of the list, or if we moved between
- * two undo actions, we make it point back at the topmost record. This is
- * how we handle redoing.
+ * Drop all inverse (redo-material) records.  Called when a real edit is
+ * recorded: a fresh change invalidates the redo stack.
  */
-int
-undo(int f, int n)
+static void
+drop_inverse_records(void)
+{
+	struct undo_rec *rec, *trec;
+	int found = 0;
+
+	TAILQ_FOREACH_SAFE(rec, &curbp->b_undo, next, trec) {
+		if (rec->u_flags & U_INVERSE) {
+			TAILQ_REMOVE(&curbp->b_undo, rec, next);
+			free_undo_record(rec);
+			found = 1;
+		}
+	}
+	if (found)
+		curbp->b_undoptr = NULL;
+}
+
+/*
+ * Records created while replaying an undo are marked U_INVERSE: they are
+ * redo material, never undoable themselves.  The undo list is therefore
+ * [new edits][U_INVERSE inverses][forward history] from head to tail.
+ * Undo walks forward history only; redo walks the inverse records and
+ * stops at forward material.
+ */
+static int
+undo_walk(int f, int n, int redoing)
 {
 	struct undo_rec	*ptr, *nptr;
 	int		 done, rval;
 	struct line	*lp;
 	int		 offset, save;
-	static int	 nulled = FALSE;
 	int		 lineno;
 
 	if (n < 0)
 		return (FALSE);
 
 	ptr = curbp->b_undoptr;
-
-	/* first invocation, make ptr point back to the top of the list */
-	if ((ptr == NULL && nulled == TRUE) ||  rptcount == 0) {
+	if (redoing) {
+		if (rptcount == 0 || ptr == NULL) {
+			/*
+			 * Every surviving inverse record is live redo
+			 * material: redo pops them on use, edits drop
+			 * them.  Start from the first one.
+			 */
+			for (ptr = TAILQ_FIRST(&curbp->b_undo); ptr != NULL;
+			    ptr = TAILQ_NEXT(ptr, next))
+				if (ptr->u_flags & U_INVERSE)
+					break;
+		}
+	} else if (rptcount == 0) {
 		ptr = TAILQ_FIRST(&curbp->b_undo);
-		nulled = TRUE;
+		if (ptr != NULL && (ptr->u_flags & U_INVERSE))
+			ptr = curbp->b_undoptr;	/* resume below the redo stack */
 	}
 
 	rval = TRUE;
 	while (n--) {
-		/* if we have a spurious boundary, free it and move on.... */
-		while (ptr && ptr->type == BOUNDARY) {
-			nptr = TAILQ_NEXT(ptr, next);
-			TAILQ_REMOVE(&curbp->b_undo, ptr, next);
-			free_undo_record(ptr);
-			ptr = nptr;
-		}
-		/*
-		 * Ptr is NULL, but on the next run, it will point to the
-		 * top again, redoing all stuff done in the buffer since
-		 * its creation.
-		 */
-		if (ptr == NULL) {
-			dobeep();
-			ewprintf("No further undo information");
-			rval = FALSE;
-			nulled = TRUE;
+		/* free boundaries; inverse records are redo material,
+		 * undo skips them without touching */
+		while (ptr != NULL) {
+			if (ptr->type == BOUNDARY) {
+				nptr = TAILQ_NEXT(ptr, next);
+				TAILQ_REMOVE(&curbp->b_undo, ptr, next);
+				free_undo_record(ptr);
+				ptr = nptr;
+				continue;
+			}
+			if (!redoing && (ptr->u_flags & U_INVERSE)) {
+				ptr = TAILQ_NEXT(ptr, next);
+				continue;
+			}
 			break;
 		}
-		nulled = FALSE;
+		if (ptr == NULL ||
+		    (redoing && IS_CONTENT(ptr->type) &&
+		    !(ptr->u_flags & U_INVERSE))) {
+			dobeep();
+			ewprintf("No further %s information",
+			    redoing ? "redo" : "undo");
+			rval = FALSE;
+			break;
+		}
 
 		/*
 		 * Loop while we don't get a boundary specifying we've
@@ -531,9 +557,20 @@ undo(int f, int n)
 
 		save = boundary_flag;
 		boundary_flag = FALSE;
+		undoing = !redoing;
+		replaying = 1;
 
 		done = 0;
 		do {
+			if (!redoing && (ptr->u_flags & U_INVERSE)) {
+				ptr = TAILQ_NEXT(ptr, next);
+				continue;
+			}
+			if (redoing && IS_CONTENT(ptr->type) &&
+			    !(ptr->u_flags & U_INVERSE)) {
+				done = 2;
+				break;
+			}
 			/*
 			 * Move to where this has to apply
 			 *
@@ -584,14 +621,31 @@ undo(int f, int n)
 				break;
 			}
 
-			/* And move to next record */
-			ptr = TAILQ_NEXT(ptr, next);
+			/*
+			 * And move to next record.  Redo pops each inverse it
+			 * applies so it can never be replayed twice.
+			 */
+			if (redoing && (ptr->u_flags & U_INVERSE)) {
+				nptr = TAILQ_NEXT(ptr, next);
+				TAILQ_REMOVE(&curbp->b_undo, ptr, next);
+				free_undo_record(ptr);
+				ptr = nptr;
+			} else
+				ptr = TAILQ_NEXT(ptr, next);
 		} while (ptr != NULL && !done);
 
+		undoing = 0;
+		replaying = 0;
 		boundary_flag = save;
 		undo_add_boundary(FFRAND, 1);
 
-		ewprintf("Undo!");
+		if (done == 2) {
+			dobeep();
+			ewprintf("No further redo information");
+			rval = FALSE;
+			break;
+		}
+		ewprintf("%s!", redoing ? "Redo" : "Undo");
 	}
 
 	curbp->b_undoptr = ptr;
@@ -599,21 +653,18 @@ undo(int f, int n)
 	return (rval);
 }
 
+int
+undo(int f, int n)
+{
+	return (undo_walk(f, n, 0));
+}
+
 /*
  * Redo the last undone action.
- * Bound to Ctrl-Shift-/ (CSI u \e[47;6u or \e[31;2u etc.)
- *
- * In standard Emacs / mg undo tree semantics:
- * When undoing continuously, undoptr moves down the undo history.
- * Any non-undo command (such as typing, moving, or invoking redo) breaks
- * the undo chain by clearing undoptr.
- * Redo simply acts as breaking the chain and undoing the inverted operations
- * that were freshly prepended to the undo queue, restoring the buffer.
+ * Bound to Ctrl-Shift-/ (CSI u \e[47;6u etc.) and M-_.
  */
 int
 redo(int f, int n)
 {
-	rptcount = 0;
-	curbp->b_undoptr = NULL;
-	return undo(f, n);
+	return (undo_walk(f, n, 1));
 }
