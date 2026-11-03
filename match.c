@@ -32,11 +32,11 @@ static struct balance {
 /*
  * Auto-pairing insertion:
  * Intercepts '(', '[', '{', '"', '\'' and manages smart-close / skip-over.
+ * The typed delimiter is passed explicitly by the per-key wrappers below.
  */
-int
-autopair_insert(int f, int n)
+static int
+autopair(int f, int n, int c)
 {
-	int c;
 	char rchar = '\0';
 	struct line *lp;
 	int doto;
@@ -46,7 +46,6 @@ autopair_insert(int f, int n)
 	if (n == 0)
 		return (TRUE);
 
-	c = key.k_chars[key.k_count - 1];
 	lp = curwp->w_dotp;
 	doto = curwp->w_doto;
 
@@ -120,6 +119,23 @@ autopair_insert(int f, int n)
 	curwp->w_rflag |= WFMOVE;
 	return (TRUE);
 }
+
+int
+ap_paren_open(int f, int n)	{ return (autopair(f, n, '(')); }
+int
+ap_paren_close(int f, int n)	{ return (autopair(f, n, ')')); }
+int
+ap_bracket_open(int f, int n)	{ return (autopair(f, n, '[')); }
+int
+ap_bracket_close(int f, int n)	{ return (autopair(f, n, ']')); }
+int
+ap_brace_open(int f, int n)	{ return (autopair(f, n, '{')); }
+int
+ap_brace_close(int f, int n)	{ return (autopair(f, n, '}')); }
+int
+ap_dquote(int f, int n)		{ return (autopair(f, n, '"')); }
+int
+ap_squote(int f, int n)		{ return (autopair(f, n, '\'')); }
 
 /*
  * Smart backspace:

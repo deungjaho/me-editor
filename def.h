@@ -690,7 +690,14 @@ void		 ttykeymapinit(void);
 void		 ttykeymaptidy(void);
 
 /* match.c X */
-int		 autopair_insert(int, int);
+int		 ap_paren_open(int, int);
+int		 ap_paren_close(int, int);
+int		 ap_bracket_open(int, int);
+int		 ap_bracket_close(int, int);
+int		 ap_brace_open(int, int);
+int		 ap_brace_close(int, int);
+int		 ap_dquote(int, int);
+int		 ap_squote(int, int);
 int		 smart_backdel(int, int);
 int		 find_match_paren(struct line *, int, struct line **, int *, int *);
 int		 showmatch(int, int);

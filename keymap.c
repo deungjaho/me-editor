@@ -397,10 +397,6 @@ static PF fund_del[] = {
 	smart_backdel		/* DEL */
 };
 
-static PF fund_cb[] = {
-	autopair_insert		/* ) ] }  */
-};
-
 static struct KEYMAPE (8) fundmap = {
 	8,
 	8,
@@ -417,15 +413,6 @@ static struct KEYMAPE (8) fundmap = {
 		},
 		{
 			CCHR('['), CCHR('_'), fund_esc, (KEYMAP *) & metamap
-		},
-		{
-			')', ')', fund_cb, NULL
-		},
-		{
-			']', ']', fund_cb, NULL
-		},
-		{
-			'}', '}', fund_cb, NULL
 		},
 		{
 			CCHR('?'), CCHR('?'), fund_del, NULL

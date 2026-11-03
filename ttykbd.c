@@ -61,14 +61,14 @@ ttykeymapinit(void)
 		dobindkey(fundamental_map, "help-help", key_f1);
 
 	/* Bind auto-pair delimiters on fundamental map */
-	dobindkey(fundamental_map, "autopair-insert", "(");
-	dobindkey(fundamental_map, "autopair-insert", "[");
-	dobindkey(fundamental_map, "autopair-insert", "{");
-	dobindkey(fundamental_map, "autopair-insert", "\"");
-	dobindkey(fundamental_map, "autopair-insert", "'");
-	dobindkey(fundamental_map, "autopair-insert", ")");
-	dobindkey(fundamental_map, "autopair-insert", "]");
-	dobindkey(fundamental_map, "autopair-insert", "}");
+	dobindkey(fundamental_map, "autopair-paren-open", "(");
+	dobindkey(fundamental_map, "autopair-bracket-open", "[");
+	dobindkey(fundamental_map, "autopair-brace-open", "{");
+	dobindkey(fundamental_map, "autopair-dquote", "\"");
+	dobindkey(fundamental_map, "autopair-squote", "'");
+	dobindkey(fundamental_map, "autopair-paren-close", ")");
+	dobindkey(fundamental_map, "autopair-bracket-close", "]");
+	dobindkey(fundamental_map, "autopair-brace-close", "}");
 	dobindkey(fundamental_map, "smart-backdel", "\\^H");
 	dobindkey(fundamental_map, "smart-backdel", "\\^?");
 
