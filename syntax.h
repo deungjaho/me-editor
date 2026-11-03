@@ -41,6 +41,7 @@ enum {
 
 /* ---- line syntax state ---- */
 enum {
+    SYNSTATE_STALE            = -1, /* never computed / invalidated */
     SYNSTATE_DEFAULT          = 0,
     SYNSTATE_IN_BLOCK_COMMENT = 1,
     SYNSTATE_IN_TRIPLE_DQUOTE = 2,  /* inside """ ... """ */
@@ -130,6 +131,7 @@ struct syntax_table *syntax_load(const char *path);
 void                 syntax_free(struct syntax_table *st);
 struct syntax_table *syntax_find(const char *lang);
 void                 syntax_sync_lookback(struct buffer *bp, struct line *target_lp);
+void                 syntax_resync(struct buffer *bp, struct line *lp);
 void                 syntax_match_dired(struct line *lp, char *hue, int ncol);
 void                 syntax_match_line(struct buffer *bp, struct line *prev, struct line *lp,
                                        char *hue, int ncol);

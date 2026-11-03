@@ -849,12 +849,33 @@ syntax_match_dired(struct line *lp, char *hue, int ncol)
 
 /* ---- sync lookback helper ---- */
 
+/* Scratch buffer for state-only tokenization (hue output discarded). */
+static char *
+syn_state_hue(int len)
+{
+    static char *buf;
+    static int cap;
+
+    if (len <= cap)
+        return buf;
+    free(buf);
+    if ((buf = malloc(len)) == NULL) {
+        cap = 0;
+        return NULL;
+    }
+    cap = len;
+    return buf;
+}
+
+static void syn_match_line(struct buffer *bp, struct line *prev,
+    struct line *lp, char *hue, int ncol);
+
 void
 syntax_sync_lookback(struct buffer *bp, struct line *target_lp)
 {
-    struct line *curr;
+    struct line *curr, *prev;
     int count = 0;
-    int max_lookback = 1000;  /* Expanded lookback depth for large multi-line comment blocks */
+    const int max_lookback = 1000;
     struct line **stack = NULL;
     int stack_cap = 0;
     int top = 0;
@@ -864,8 +885,8 @@ syntax_sync_lookback(struct buffer *bp, struct line *target_lp)
 
     curr = lback(target_lp);
     while (curr != bp->b_headp && count < max_lookback) {
-        if (curr->l_synstate != SYNSTATE_DEFAULT)
-            break;  /* Found a known state anchor */
+        if (curr->l_synstate != SYNSTATE_STALE)
+            break;  /* Found a computed state anchor */
 
         if (top >= stack_cap) {
             int new_cap = stack_cap ? stack_cap * 2 : 128;
@@ -881,21 +902,64 @@ syntax_sync_lookback(struct buffer *bp, struct line *target_lp)
     }
 
     /* Fast-forward scan through the stack to compute line states */
-    struct line *prev = curr;
+    prev = curr;
     while (top > 0) {
         struct line *lp = stack[--top];
-        char dummy_hue[1];
-        syntax_match_line(bp, prev, lp, dummy_hue, 0);
+        char *hb = syn_state_hue(llength(lp));
+        if (hb == NULL)
+            break;
+        syn_match_line(bp, prev, lp, hb, 1);
         prev = lp;
     }
     if (stack)
         free(stack);
 }
 
+/*
+ * Recompute line states starting at lp after an edit.  Lines above lp
+ * are recovered via lookback; lp and forward are retokenized until a
+ * computed end-state matches its previously recorded value.
+ */
+void
+syntax_resync(struct buffer *bp, struct line *lp)
+{
+    struct line *prev;
+
+    if (bp == NULL || bp->b_syntax == NULL || lp == NULL ||
+        lp == bp->b_headp)
+        return;
+
+    syntax_sync_lookback(bp, lp);
+    prev = lback(lp);
+    while (lp != bp->b_headp) {
+        short old = lp->l_synstate;
+        char *hb = syn_state_hue(llength(lp));
+        if (hb == NULL)
+            break;
+        syn_match_line(bp, prev, lp, hb, 1);
+        if (old != SYNSTATE_STALE && lp->l_synstate == old)
+            break;
+        prev = lp;
+        lp = lforw(lp);
+    }
+}
+
 /* ---- main tokenizer ---- */
 
 void
 syntax_match_line(struct buffer *bp, struct line *prev, struct line *lp,
+                  char *hue, int ncol)
+{
+    if (bp == NULL || lp == NULL)
+        return;
+    if (prev != NULL && prev != bp->b_headp &&
+        prev->l_synstate == SYNSTATE_STALE)
+        syntax_sync_lookback(bp, lp);
+    syn_match_line(bp, prev, lp, hue, ncol);
+}
+
+static void
+syn_match_line(struct buffer *bp, struct line *prev, struct line *lp,
                   char *hue, int ncol)
 {
     struct syntax_table *st;
@@ -905,16 +969,19 @@ syntax_match_line(struct buffer *bp, struct line *prev, struct line *lp,
     text = lp->l_text;
     textlen = llength(lp);
 
+    st = bp ? bp->b_syntax : NULL;
+    if (st == NULL || (bp->b_flag & BFSYNOFF))
+        return;
+    if (hue == NULL)
+        return;
+
     /* default color for all bytes (entire line, not just visible width) */
     if (ncol > 0)
         memset(hue, SCOLOR_DEFAULT, textlen);
 
-    st = bp ? bp->b_syntax : NULL;
-    if (st == NULL || (bp->b_flag & BFSYNOFF))
-        return;
-
     /* recover state from previous line */
-    state = prev ? prev->l_synstate : SYNSTATE_DEFAULT;
+    state = (prev != NULL && prev->l_synstate >= 0)
+        ? prev->l_synstate : SYNSTATE_DEFAULT;
 
     for (i = 0; i < textlen; ) {
         unsigned char c = (unsigned char)text[i];

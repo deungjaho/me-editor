@@ -27,6 +27,7 @@
 
 #include "def.h"
 #include "utf8.h"
+#include "syntax.h"
 
 int	casereplace = TRUE;
 
@@ -58,7 +59,7 @@ lalloc(int used)
 	lp->l_text = NULL;
 	lp->l_size = 0;
 	lp->l_used = used;	/* XXX */
-	lp->l_synstate = 0;
+	lp->l_synstate = SYNSTATE_STALE;
 	if (lrealloc(lp, used) == FALSE) {
 		free(lp);
 		return (NULL);
@@ -215,6 +216,7 @@ linsert(int n, int c)
 		}
 		undo_add_insert(lp2, 0, n);
 		curwp->w_doto = n;
+		syntax_resync(curbp, lp2);
 		return (TRUE);
 	}
 	/* save for later */
@@ -243,6 +245,7 @@ linsert(int n, int c)
 		}
 	}
 	undo_add_insert(curwp->w_dotp, doto, n);
+	syntax_resync(curbp, lp1);
 	return (TRUE);
 }
 
@@ -298,6 +301,7 @@ linsert_buf(const char *buf, int len)
 		}
 		undo_add_insert(lp2, 0, len);
 		curwp->w_doto = len;
+		syntax_resync(curbp, lp2);
 		return (TRUE);
 	}
 
@@ -321,6 +325,7 @@ linsert_buf(const char *buf, int len)
 		}
 	}
 	undo_add_insert(curwp->w_dotp, doto, len);
+	syntax_resync(curbp, lp1);
 	return (TRUE);
 }
 
@@ -368,6 +373,7 @@ lnewline_at(struct line *lp1, int doto)
 		undo_add_boundary(FFRAND, 1);
 		undo_add_insert(lp2, 0, 1);
 		undo_add_boundary(FFRAND, 1);
+		syntax_resync(curbp, lp1);
 		return (TRUE);
 	}
 
@@ -401,6 +407,7 @@ lnewline_at(struct line *lp1, int doto)
 	undo_add_boundary(FFRAND, 1);
 	undo_add_insert(lp1, llength(lp1), 1);
 	undo_add_boundary(FFRAND, 1);
+	syntax_resync(curbp, lp1);
 	return (TRUE);
 }
 
@@ -509,6 +516,7 @@ ldelete(RSIZE n, int kflag)
 		goto out;
 	rval = TRUE;
 out:
+	syntax_resync(curbp, curwp->w_dotp);
 	free(sv);
 	return (rval);
 }
@@ -567,6 +575,7 @@ ldelnewline(void)
 		lp1->l_fp = lp2->l_fp;
 		lp2->l_fp->l_bp = lp1;
 		free(lp2);
+		syntax_resync(curbp, lp1);
 		return (TRUE);
 	}
 	if ((lp3 = lalloc(lp1->l_used + lp2->l_used)) == NULL)
@@ -595,6 +604,7 @@ ldelnewline(void)
 	}
 	free(lp1);
 	free(lp2);
+	syntax_resync(curbp, lp3);
 	return (TRUE);
 }
 
