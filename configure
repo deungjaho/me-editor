@@ -545,8 +545,8 @@ EOF
 fi
 
 cat << EOF >> Makefile
-PREFIX =	$prefix
-MANDIR =	$mandir
+PREFIX ?=	$prefix
+MANDIR ?=	\${PREFIX}/share/man
 
 PROG =	$prog
 OBJS =	autoexec.o basic.o bell.o buffer.o cinfo.o dir.o display.o \\

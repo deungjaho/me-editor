@@ -3,8 +3,8 @@
 
 CC =		cc
 CFLAGS =	-g -O2 -Wall -DREGEX -DMSG_NOSIGNAL=SO_NOSIGPIPE -DLOGIN_NAME_MAX=MAXLOGNAME
-PREFIX =	/usr/local
-MANDIR =	/usr/local/man
+PREFIX ?=	/usr/local
+MANDIR ?=	${PREFIX}/share/man
 
 PROG =	me
 OBJS =	autoexec.o basic.o bell.o buffer.o cinfo.o dir.o display.o \
