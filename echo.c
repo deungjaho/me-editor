@@ -576,8 +576,11 @@ handle_cursor_key:
 		case CCHR('\\'):
 		case CCHR('Q'):			/* quote next */
 			c = getkey(FALSE);
-			/* FALLTHROUGH */
+			goto inschr;
 		default:
+			if (ISCTRL(c))
+				break;
+		inschr:
 			if (dynbuf && epos + 1 >= nbuf) {
 				void *newp;
 				size_t newsize = epos + epos + 16;

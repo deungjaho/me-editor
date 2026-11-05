@@ -1009,15 +1009,16 @@ syn_match_line(struct buffer *bp, struct line *prev, struct line *lp,
     text = lp->l_text;
     textlen = llength(lp);
 
-    st = bp ? bp->b_syntax : NULL;
-    if (st == NULL || (bp->b_flag & BFSYNOFF))
-        return;
     if (hue == NULL)
         return;
 
     /* default color for all bytes (entire line, not just visible width) */
     if (ncol > 0)
         memset(hue, SCOLOR_DEFAULT, textlen);
+
+    st = bp ? bp->b_syntax : NULL;
+    if (st == NULL || (bp->b_flag & BFSYNOFF))
+        return;
 
     /* recover state from previous line */
     state = (prev != NULL && prev->l_synstate >= 0)

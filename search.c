@@ -236,6 +236,9 @@ isearch(int dir)
 			(void)strlcpy(pat, opat, sizeof(pat));
 			return (ABORT);
 		case CCHR('S'):
+			/* C-s on an empty pattern goes project-wide */
+			if (pptr <= 0)
+				return (global_search(FFRAND, 0));
 			if (dir == SRCH_BACK) {
 				dir = SRCH_FORW;
 				is_lpush();

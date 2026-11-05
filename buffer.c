@@ -645,6 +645,7 @@ int
 bclear(struct buffer *bp)
 {
 	struct line	*lp;
+	struct mgwin	*wp;
 	int		 s;
 
 	/* Has buffer changed, and do we care? */
@@ -660,6 +661,18 @@ bclear(struct buffer *bp)
 	bp->b_marko = 0;
 	bp->b_dotline = bp->b_markline = 1;
 	bp->b_lines = 1;
+	/* windows on bp still point at the freed lines */
+	for (wp = wheadp; wp != NULL; wp = wp->w_wndp) {
+		if (wp->w_bufp != bp)
+			continue;
+		wp->w_dotp = bp->b_headp;
+		wp->w_linep = bp->b_headp;
+		wp->w_markp = NULL;
+		wp->w_wrapline = NULL;
+		wp->w_doto = 0;
+		wp->w_dotline = 1;
+		wp->w_rflag |= WFFULL | WFMOVE;
+	}
 
 	return (TRUE);
 }

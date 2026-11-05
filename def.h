@@ -763,6 +763,7 @@ int		 cc_lfindent(int, int);
 /* grep.c X */
 int		 next_error(int, int);
 int		 globalwdtoggle(int, int);
+int		 global_search(int, int);
 int		 compile(int, int);
 
 /* bell.c */
@@ -784,6 +785,10 @@ void		 cleanup(void);
 extern struct buffer	*bheadp;
 extern struct buffer	*curbp;
 extern struct mgwin	*curwp;
+extern struct mgwin	*menu_wp;
+extern struct line	*menu_hitline;
+extern int		 curline_lbound;
+extern char		 menu_stat[];
 extern struct mgwin	*wheadp;
 extern struct vhead	 varhead;
 extern int		 thisflag;

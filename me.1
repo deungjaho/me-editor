@@ -198,6 +198,8 @@ quoted-insert
 isearch-backward
 .It C-s
 isearch-forward
+.It C-s C-s
+global-search (at an empty isearch prompt)
 .It C-t
 transpose-chars
 .It C-u
@@ -637,6 +639,35 @@ paragraphs.
 Paragraphs are delimited by <NL><NL> or <NL><TAB> or <NL><SPACE>.
 .It Ic forward-word
 Move the cursor forward by the specified number of words.
+.It Ic global-search
+Prompt for a pattern and search for it in all files under the project
+root: the nearest ancestor directory containing a
+.Pa .git
+entry, or the current buffer's working directory when there is none.
+The search uses
+.Xr rg 1
+when available and
+.Xr grep 1
+otherwise.
+A candidate list is drawn above the echo area, grouped by file with the
+file path shown once per group.  Move through matches with
+.Ic C-n / C-p
+or the arrow keys; the file at the current match is previewed in the
+current window with the matched line highlighted, and the match counter
+is shown on the mode line.  While the list is open,
+.Ic C-a / C-e / C-f / C-b
+move the cursor inside the preview, which also scrolls lines that are
+wider than the window.
+.Ic RET
+visits the match and
+.Ic C-g
+or
+.Ic q
+cancels.  Typing
+.Ic C-s
+at an empty incremental-search prompt runs this command, so
+.Ic C-s C-s
+switches a local search into a project-wide one.
 .It Ic global-set-key
 Bind a key in the global (fundamental) key map.
 .It Ic global-unset-key

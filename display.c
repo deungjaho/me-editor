@@ -80,7 +80,7 @@ int	tttop = HUGE;		/* Top of scroll region.	 */
 int	ttbot = HUGE;		/* Bottom of scroll region.	 */
 int	lbound = 0;		/* leftmost bound of the current */
 				/* line being displayed		 */
-static int	curline_lbound = 0;	/* horizontal scroll offset of current line */
+int		curline_lbound = 0;	/* horizontal scroll offset of current line */
 static struct line *last_dotp = NULL; /* track line of dot across updates */
 static int	last_dotline = -1;    /* track dotline across updates */
 static int	last_doto = -1;        /* track doto across updates */
@@ -197,6 +197,38 @@ apply_region_eol(int line_num)
 	for (col = 0; col < ncol; col++) {
 		int h = vp->v_hue[col];
 		/* Mark any non-region column that is a blank space. */
+		if (!HUE_IN_REGION(h) && VSLOT(vp, col)[0] == ' ' &&
+		    vp->v_wid[col] == 1)
+			vp->v_hue[col] = h | REGION_BIT;
+	}
+}
+
+/*
+ * Global-search preview marker: OR REGION_BIT into the hit line's hue
+ * so the searched line stands out in the preview window.
+ */
+static void
+apply_hitline_hue(struct line *lp)
+{
+	int j;
+
+	if (lp != menu_hitline)
+		return;
+	for (j = 0; j < llength(lp); j++)
+		g_hue[j] |= REGION_BIT;
+}
+
+static void
+apply_hitline_eol(struct line *lp)
+{
+	struct video *vp;
+	int col;
+
+	if (lp != menu_hitline)
+		return;
+	vp = vscreen[vtrow];
+	for (col = 0; col < ncol; col++) {
+		int h = vp->v_hue[col];
 		if (!HUE_IN_REGION(h) && VSLOT(vp, col)[0] == ' ' &&
 		    vp->v_wid[col] == 1)
 			vp->v_hue[col] = h | REGION_BIT;
@@ -847,9 +879,11 @@ update(int modelinecolor)
 			ensure_hue_line(lp);
 			syntax_match_line(wp->w_bufp, lback(lp), lp, g_hue, ncol);
 			apply_region_hue(lp, wp->w_dotline);
+			apply_hitline_hue(lp);
 			for (j = 0; j < llength(lp); )
 				vtputchar(lp, &j, wp, g_hue);
 			vteeol();
+			apply_hitline_eol(lp);
 			if (this_lbound > 0)
 				set_boundary_indicator(vscreen[i], wp->w_leftcol, "«", SCOLOR_CONTROL);
 		} else if ((wp->w_rflag & (WFEDIT | WFFULL)) != 0) {
@@ -879,10 +913,12 @@ update(int modelinecolor)
 					syntax_match_line(wp->w_bufp, lback(lp), lp,
 					    g_hue, ncol);
 					apply_region_hue(lp, line_num);
+					apply_hitline_hue(lp);
 					for (j = 0; j < llength(lp); )
 						vtputchar(lp, &j, wp, g_hue);
 				}
 				vteeol();
+				apply_hitline_eol(lp);
 				if (this_lbound > 0)
 					set_boundary_indicator(vscreen[i], wp->w_leftcol, "«", SCOLOR_CONTROL);
 				apply_region_eol(line_num);
@@ -1452,8 +1488,15 @@ modeline(struct mgwin *wp, int modelinecolor)
 	else
 		pct = (wp->w_dotline * 100) / total;
 
-	int rlen = snprintf(right_buf, sizeof(right_buf), "Ln %d, Col %d (%d%%)",
-	    wp->w_dotline, getcolpos(wp) + 1, pct);
+	int rlen;
+	if (wp == menu_wp && menu_stat[0] != '\0')
+		rlen = snprintf(right_buf, sizeof(right_buf),
+		    "%s  Ln %d, Col %d (%d%%)", menu_stat,
+		    wp->w_dotline, getcolpos(wp) + 1, pct);
+	else
+		rlen = snprintf(right_buf, sizeof(right_buf),
+		    "Ln %d, Col %d (%d%%)",
+		    wp->w_dotline, getcolpos(wp) + 1, pct);
 
 	int sel_len = strlen(sel_buf);
 	int right_needed = rlen + sel_len + 1;

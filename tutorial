@@ -160,8 +160,8 @@ that as you start typing the characters, me automatically searches as you type
 the characters.
 
 To continue searching the text you're looking for, type C-s to find the next
-instance. To search in reverse, type C-r instead of C-s. If you type C-s or 
-C-r twice, it will simply search for the last text that you searched for.
+instance. To search in reverse, type C-r instead of C-s. Typing C-s at an
+empty prompt instead opens a project-wide search across the project files.
 
 To stop searching for text, simply use the cursor keys (or C-f, C-b etc.) or
 C-g to stop the search operation. 
