@@ -1,0 +1,193 @@
+# Swift syntax definition for me
+
+flags: annotations
+
+# Control flow (rose/magenta)
+control: break
+control: case
+control: catch
+control: continue
+control: default
+control: defer
+control: do
+control: else
+control: fallthrough
+control: for
+control: guard
+control: if
+control: in
+control: repeat
+control: return
+control: switch
+control: throw
+control: while
+control: where
+control: try
+control: throws
+control: rethrows
+control: async
+control: await
+
+# Conditional compilation & literals
+control: #if
+control: #elseif
+control: #else
+control: #endif
+control: #available
+control: #unavailable
+control: #selector
+control: #keyPath
+control: #file
+control: #fileID
+control: #filePath
+control: #line
+control: #column
+control: #function
+control: #dsohandle
+control: #warning
+control: #error
+control: #sourceLocation
+control: #colorLiteral
+control: #imageLiteral
+control: #fileLiteral
+control: #Preview
+
+# Declaration keywords
+keyword: associatedtype
+keyword: class
+keyword: deinit
+keyword: enum
+keyword: extension
+keyword: func
+keyword: import
+keyword: init
+keyword: inout
+keyword: operator
+keyword: precedencegroup
+keyword: protocol
+keyword: struct
+keyword: subscript
+keyword: typealias
+keyword: var
+keyword: let
+keyword: actor
+keyword: macro
+
+# Modifiers
+keyword: static
+keyword: final
+keyword: override
+keyword: open
+keyword: public
+keyword: private
+keyword: internal
+keyword: fileprivate
+keyword: package
+keyword: lazy
+keyword: weak
+keyword: unowned
+keyword: mutating
+keyword: nonmutating
+keyword: convenience
+keyword: dynamic
+keyword: required
+keyword: indirect
+keyword: infix
+keyword: prefix
+keyword: postfix
+keyword: precedence
+keyword: associativity
+keyword: left
+keyword: right
+keyword: some
+keyword: any
+keyword: as
+keyword: is
+keyword: self
+keyword: Self
+keyword: super
+keyword: consuming
+keyword: borrowing
+keyword: nonisolated
+keyword: isolated
+keyword: didSet
+keyword: willSet
+keyword: get
+keyword: set
+
+# Constants (cyan)
+constant: true
+constant: false
+constant: nil
+
+# Common types
+type: Int
+type: Int8
+type: Int16
+type: Int32
+type: Int64
+type: UInt
+type: UInt8
+type: UInt16
+type: UInt32
+type: UInt64
+type: Float
+type: Float16
+type: Float32
+type: Float64
+type: Double
+type: Bool
+type: String
+type: Substring
+type: Character
+type: Array
+type: ContiguousArray
+type: Dictionary
+type: Set
+type: Optional
+type: Any
+type: AnyObject
+type: AnyClass
+type: Void
+type: Never
+type: Error
+type: Result
+type: Range
+type: ClosedRange
+type: Sequence
+type: Collection
+type: Codable
+type: Decodable
+type: Encodable
+type: Hashable
+type: Equatable
+type: Comparable
+type: Identifiable
+type: Sendable
+type: Data
+type: Date
+type: URL
+type: UUID
+type: TimeInterval
+type: CGFloat
+type: CGPoint
+type: CGSize
+type: CGRect
+type: Task
+type: MainActor
+type: View
+type: State
+type: Binding
+type: ObservedObject
+type: StateObject
+type: EnvironmentObject
+type: Published
+type: ObservableObject
+
+# Strings (""" first so multi-line wins over ")
+string: """ """
+string: " "
+
+# Comments
+line_comment: //
+block_comment: /* */

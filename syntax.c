@@ -1399,6 +1399,8 @@ syntax_detect(const char *filename)
         lang = "sql";
     else if (strcmp(ext, "m") == 0 || strcmp(ext, "mm") == 0)
         lang = "objc";
+    else if (strcmp(ext, "swift") == 0)
+        lang = "swift";
     else
         return NULL;
 
