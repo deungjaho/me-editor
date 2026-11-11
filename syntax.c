@@ -357,6 +357,13 @@ match_rule_prefix(struct syntax_table *st, const struct syn_rule *rule,
             *color = rule->sr_color;
             *match_len = end - pos;
             return 1;
+        } else if (strchr("@%*<>^+|!#$-?", text[end]) ||
+                   (text[end] >= '0' && text[end] <= '9')) {
+            /* single-char automatic var: $@ $< $^ $* $? $+ $| $! $$ $# $- $0..$9 */
+            end++;
+            *color = rule->sr_color;
+            *match_len = end - pos;
+            return 1;
         }
     }
 
@@ -480,6 +487,60 @@ match_rule_md_list(struct syntax_table *st, const struct syn_rule *rule,
     }
 
     return 0;
+}
+
+/*
+ * Makefile line-start matcher.  Only fires when the token is the first
+ * non-whitespace thing on the line (spaces only — a TAB makes it a recipe).
+ * `target:` / `%.o:` colors the name CONTROL; `VAR =`, `VAR :=`, `VAR ?=`,
+ * `VAR +=`, `VAR !=` color the name KEYWORD.
+ */
+static int
+match_rule_make_target(struct syntax_table *st, const struct syn_rule *rule,
+                       const char *text, int pos, int textlen,
+                       int *match_len, int *color, int *state)
+{
+    int k, end, t;
+    (void)st;
+    (void)state;
+
+    for (k = 0; k < pos; k++) {
+        if (text[k] != ' ')
+            return 0;
+    }
+
+    /* token: identifier plus make-ish chars (.PHONY, %.o, dir/x, a-b) */
+    for (end = pos; end < textlen; end++) {
+        unsigned char ch = (unsigned char)text[end];
+        if (!is_word_char(ch) && ch != '.' && ch != '%' && ch != '/' &&
+            ch != '-' && ch != '@' && ch != '*' && ch != '[' && ch != ']')
+            break;
+    }
+    if (end == pos)
+        return 0;
+
+    for (t = end; t < textlen && text[t] == ' '; t++)
+        ;
+    if (t >= textlen)
+        return 0;
+
+    if (text[t] == ':') {
+        /* `:=` and `::=` are assignments, not targets */
+        if ((t + 1 < textlen && text[t + 1] == '=') ||
+            (t + 2 < textlen && text[t + 1] == ':' && text[t + 2] == '='))
+            *color = SCOLOR_KEYWORD;
+        else
+            *color = SCOLOR_CONTROL;
+    } else if (text[t] == '=' ||
+               ((text[t] == '+' || text[t] == '?' || text[t] == '!') &&
+                t + 1 < textlen && text[t + 1] == '=')) {
+        *color = SCOLOR_KEYWORD;
+    } else {
+        return 0;
+    }
+    (void)rule;
+    *match_len = end - pos;
+    return 1;
 }
 
 static void
@@ -626,6 +687,9 @@ syntax_load(const char *path)
                 } else if (strcmp(tok, "md_lists") == 0) {
                     syn_rule_add(st, SRULE_MD_LIST, SCOLOR_CONTROL,
                                  strdup("-"), NULL, match_rule_md_list);
+                } else if (strcmp(tok, "make_targets") == 0) {
+                    syn_rule_add(st, SRULE_MAKE_TARGET, SCOLOR_CONTROL,
+                                 strdup(":"), NULL, match_rule_make_target);
                 } else if (strcmp(tok, "fixed_types") == 0) {
                     st->st_flags |= SYNFLAG_FIXED_TYPES;
                 } else if (strcmp(tok, "no_numbers") == 0) {
@@ -1336,6 +1400,13 @@ syntax_detect(const char *filename)
         lang = "sh";
         goto found;
     }
+    if (strcmp(base, "makefile") == 0 || strcmp(base, "GNUmakefile") == 0 ||
+        strcmp(base, "BSDmakefile") == 0 ||
+        (strncmp(base, "Makefile", 8) == 0 &&
+         (base[8] == '\0' || base[8] == '.'))) {
+        lang = "makefile";
+        goto found;
+    }
 
     ext = strrchr(filename, '.');
     if (ext == NULL)
@@ -1401,6 +1472,8 @@ syntax_detect(const char *filename)
         lang = "objc";
     else if (strcmp(ext, "swift") == 0)
         lang = "swift";
+    else if (strcmp(ext, "mk") == 0 || strcmp(ext, "mak") == 0)
+        lang = "makefile";
     else
         return NULL;
 

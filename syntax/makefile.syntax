@@ -1,0 +1,30 @@
+# Makefile syntax definition for me
+# flags: make_targets colors `target:` (rose) and `VAR =` (sand) at line start.
+
+flags: make_targets
+
+# Variable references: $(VAR) ${VAR} and automatic vars $@ $< $^ $* ...
+prefix: string $
+
+# Directives & conditionals (rose/magenta)
+control: define
+control: endef
+control: export
+control: unexport
+control: include
+control: sinclude
+control: vpath
+control: override
+control: private
+control: ifeq
+control: ifneq
+control: ifdef
+control: ifndef
+control: else
+control: endif
+
+# Strings
+string: " "
+
+# Comments
+line_comment: #

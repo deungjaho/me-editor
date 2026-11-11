@@ -68,6 +68,7 @@ enum {
     SRULE_MD_HEADER,
     SRULE_MD_QUOTE,
     SRULE_MD_LIST,
+    SRULE_MAKE_TARGET,
 };
 
 /* ---- word syntax flags ---- */
