@@ -1474,6 +1474,12 @@ syntax_detect(const char *filename)
         lang = "swift";
     else if (strcmp(ext, "mk") == 0 || strcmp(ext, "mak") == 0)
         lang = "makefile";
+    else if (strcmp(ext, "wxml") == 0)
+        lang = "wxml";
+    else if (strcmp(ext, "wxss") == 0)
+        lang = "css";
+    else if (strcmp(ext, "wxs") == 0)
+        lang = "js";
     else
         return NULL;
 

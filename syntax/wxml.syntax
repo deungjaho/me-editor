@@ -1,0 +1,24 @@
+# WXML (WeChat Mini Program) syntax definition for me
+
+flags: tags
+
+# Interpolation {{ expr }}
+string: {{ }}
+
+# Directive attributes: wx:if / wx:for / mark:* (rose)
+prefix: control wx:
+prefix: control mark:
+
+# Event bindings: bindtap / bind:tap / catch:* / mut-bind:* / capture-* (sand)
+prefix: keyword capture-bind:
+prefix: keyword capture-catch:
+prefix: keyword mut-bind:
+prefix: keyword bind
+prefix: keyword catch
+
+# Strings
+string: " "
+string: ' '
+
+# Comments
+block_comment: <!-- -->
