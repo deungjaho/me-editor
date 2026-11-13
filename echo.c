@@ -22,6 +22,7 @@
 #include "funmap.h"
 #include "key.h"
 #include "macro.h"
+#include "utf8.h"
 
 static char	*veread(const char *, char *, size_t, int, va_list)
 			__attribute__((__format__ (printf, 1, 0)));
@@ -37,6 +38,8 @@ static void	 redraw_minibuf(const char *, int, int, int, int);
 static struct list	*copy_list(struct list *);
 
 int		epresf = FALSE;		/* stuff in echo line flag */
+
+static int	mb_hscroll = 0;
 
 /*
  * Erase the echo line.
@@ -198,7 +201,6 @@ veread(const char *fp, char *buf, size_t nbuf, int flag, va_list ap)
 	struct buffer	*bp;			/* completion list buffer */
 	struct mgwin	*wp;			/* window for compl list */
 	int	 match;			/* esc match found */
-	int	 cc, rr;		/* saved ttcol, ttrow */
 	char	*ret;			/* return value */
 
 	static char emptyval[] = "";	/* XXX hackish way to return err msg*/
@@ -219,6 +221,7 @@ veread(const char *fp, char *buf, size_t nbuf, int flag, va_list ap)
 	int prompt_col = 0;
 	ml = mr = esc = 0;
 	cplflag = FALSE;
+	mb_hscroll = 0;
 
 	if ((flag & EFNEW) != 0 || ttrow != nrow - 1) {
 		ttcolor(CTEXT);
@@ -431,29 +434,25 @@ handle_cursor_key:
 			break;
 		case CCHR('B'): /* back */
 			if (cpos > 0) {
+				while (cpos > 0 && (unsigned char)buf[cpos - 1] >= 0x80 &&
+				    (unsigned char)buf[cpos - 1] < 0xC0)
+					cpos--;
 				cpos--;
-				if (mark_pos >= 0) {
-					redraw_minibuf(buf, epos, cpos, mark_pos, prompt_col);
-				} else {
-					if (ISCTRL(buf[cpos]) != FALSE) {
-						ttputc('\b');
-						--ttcol;
-					}
-					ttputc('\b');
-					--ttcol;
-					ttflush();
-				}
+				redraw_minibuf(buf, epos, cpos, mark_pos, prompt_col);
 			}
 			break;
 		case CCHR('F'): /* forw */
 			if (cpos < epos) {
-				cpos++;
-				if (mark_pos >= 0) {
-					redraw_minibuf(buf, epos, cpos, mark_pos, prompt_col);
-				} else {
-					eputc(buf[cpos - 1]);
-					ttflush();
+				int flen = 1;
+				if ((unsigned char)buf[cpos] >= 0x80) {
+					(void)utf8_width(&buf[cpos], epos - cpos, &flen);
+					if (flen < 1)
+						flen = 1;
 				}
+				cpos += flen;
+				if (cpos > epos)
+					cpos = epos;
+				redraw_minibuf(buf, epos, cpos, mark_pos, prompt_col);
 			}
 			break;
 		case CCHR('Y'): /* yank from kill buffer */
@@ -478,22 +477,17 @@ handle_cursor_key:
 					buf[t] = buf[t - 1];
 				buf[cpos++] = (char)y;
 				epos++;
-				eputc((char)y);
-				cc = ttcol;
-				rr = ttrow;
-				for (t = cpos; t < epos; t++)
-					eputc(buf[t]);
-				ttmove(rr, cc);
 			}
-			ttflush();
+			mark_pos = -1;
+			redraw_minibuf(buf, epos, cpos, mark_pos, prompt_col);
 			break;
 		case CCHR('K'): /* copy here-EOL to kill buffer */
 			kdelete();
 			for (i = cpos; i < epos; i++)
 				kinsert(buf[i], KFORW);
-			tteeol();
 			epos = cpos;
-			ttflush();
+			mark_pos = -1;
+			redraw_minibuf(buf, epos, cpos, mark_pos, prompt_col);
 			break;
 		case CCHR('['):
 			ml = mr = esc = 1;
@@ -506,7 +500,8 @@ handle_cursor_key:
 			if (epos == 0 && !(flag & EFNUL)) {
 				(void)ctrlg(FFRAND, 0);
 				ttflush();
-				return (NULL);
+				ret = NULL;
+				goto done;
 			}
 			if ((flag & EFFUNC) != 0) {
 				if (complt(flag, c, buf, nbuf, epos, &i)
@@ -534,7 +529,6 @@ handle_cursor_key:
 			ret = buf;
 			goto done;
 		case CCHR('G'):			/* bell, abort */
-			eputc(CCHR('G'));
 			(void)ctrlg(FFRAND, 0);
 			ttflush();
 			ret = NULL;
@@ -542,10 +536,15 @@ handle_cursor_key:
 		case CCHR('H'):			/* rubout, erase */
 		case CCHR('?'):
 			if (cpos != 0) {
-				epos--;
-				cpos--;
-				for (i = cpos; i < epos; i++)
-					buf[i] = buf[i + 1];
+				int delstart = cpos - 1;
+				while (delstart > 0 && (unsigned char)buf[delstart] >= 0x80 &&
+				    (unsigned char)buf[delstart] < 0xC0)
+					delstart--;
+				int delcount = cpos - delstart;
+				for (i = delstart; i + delcount < epos; i++)
+					buf[i] = buf[i + delcount];
+				epos -= delcount;
+				cpos = delstart;
 				mark_pos = -1;
 				redraw_minibuf(buf, epos, cpos, mark_pos, prompt_col);
 			}
@@ -605,6 +604,12 @@ skipkey:	/* ignore key press */
 ;
 	}
 done:
+	ttcolor(CTEXT);
+	ttmove(nrow - 1, 0);
+	tteeol();
+	ttflush();
+	epresf = FALSE;
+
 	if (cwin == TRUE) {
 		/* blow away cpltion window */
 		bp = bfind("*Completions*", TRUE);
@@ -1077,27 +1082,159 @@ eputc(char c)
 static void
 redraw_minibuf(const char *buf, int epos, int cpos, int mark_pos, int prompt_col)
 {
-	/* Force position to prompt column by invalidating cached position */
-	ttrow = ttcol = HUGE;
-	ttmove(nrow - 1, prompt_col);
-	tthue = CNONE;
-	ttcolor(CTEXT);
-	tteeol();
+	int avail_cols = (ncol - 1) - prompt_col;
+	if (avail_cols < 1)
+		avail_cols = 1;
+
+	if (prompt_col >= ncol - 2) {
+		ttrow = ttcol = HUGE;
+		ttmove(nrow - 1, prompt_col < ncol - 1 ? prompt_col : ncol - 2);
+		tteeol();
+		ttflush();
+		return;
+	}
+
+	int total_width = 0;
+	int cursor_col = 0;
+	int i = 0;
+
+	while (i < epos) {
+		int len = 1, w = 1;
+		unsigned char c = (unsigned char)buf[i];
+
+		if (ISCTRL(c)) {
+			w = 2;
+			len = 1;
+		} else if (c >= 0x80) {
+			w = utf8_width(&buf[i], epos - i, &len);
+			if (w < 0) {
+				w = 1;
+				len = 1;
+			}
+		}
+		if (i < cpos)
+			cursor_col += w;
+		total_width += w;
+		i += len;
+	}
+
+	if (total_width < avail_cols) {
+		mb_hscroll = 0;
+	} else {
+		int wcols = avail_cols - 2;
+		if (wcols < 1)
+			wcols = 1;
+		int margin = 5;
+		if (margin * 2 >= wcols)
+			margin = (wcols > 2) ? 1 : 0;
+
+		if (cursor_col < mb_hscroll + margin) {
+			mb_hscroll = cursor_col - margin;
+			if (mb_hscroll < 0)
+				mb_hscroll = 0;
+		} else if (cursor_col >= mb_hscroll + wcols - margin) {
+			mb_hscroll = cursor_col - (wcols - margin - 1);
+		}
+		if (mb_hscroll > 0 && mb_hscroll > total_width - wcols) {
+			mb_hscroll = total_width - wcols;
+			if (mb_hscroll < 0)
+				mb_hscroll = 0;
+		}
+	}
+
+	if (mb_hscroll > 0) {
+		int col = 0;
+		i = 0;
+		while (i < epos) {
+			int len = 1, w = 1;
+			unsigned char c = (unsigned char)buf[i];
+
+			if (ISCTRL(c)) {
+				w = 2;
+				len = 1;
+			} else if (c >= 0x80) {
+				w = utf8_width(&buf[i], epos - i, &len);
+				if (w < 0) {
+					w = 1;
+					len = 1;
+				}
+			}
+			if (col < mb_hscroll && col + w > mb_hscroll) {
+				mb_hscroll = col;
+				break;
+			}
+			col += w;
+			i += len;
+		}
+	}
+
+	int has_left = (mb_hscroll > 0) ? 1 : 0;
+	int text_start_col = prompt_col + has_left;
+	int max_screen_col = ncol - 2;
+
+	int rem_width = total_width - mb_hscroll;
+	int has_right = (text_start_col + rem_width > max_screen_col) ? 1 : 0;
+	int text_end_col = has_right ? (max_screen_col - 1) : max_screen_col;
+	if (text_end_col < text_start_col)
+		text_end_col = text_start_col;
+
 	int s1 = -1, s2 = -1;
 	if (mark_pos >= 0) {
 		if (mark_pos == cpos) {
-			/* When mark is set right at cursor, highlight the single character under cursor */
 			s1 = cpos;
-			s2 = (cpos < epos) ? cpos + 1 : cpos;
+			int slen = 1;
+			if (cpos < epos && (unsigned char)buf[cpos] >= 0x80) {
+				(void)utf8_width(&buf[cpos], epos - cpos, &slen);
+				if (slen < 1)
+					slen = 1;
+			}
+			s2 = (cpos < epos) ? cpos + slen : cpos;
 		} else {
 			s1 = (mark_pos < cpos) ? mark_pos : cpos;
 			s2 = (mark_pos < cpos) ? cpos : mark_pos;
 		}
 	}
 
+	ttrow = ttcol = HUGE;
+	ttmove(nrow - 1, prompt_col);
+	tthue = CNONE;
+	ttcolor(CTEXT);
+	tteeol();
+
+	if (has_left) {
+		ttcolor(CTEXT);
+		ttputc('$');
+	}
+
+	int cur_screen_col = text_start_col;
 	int in_prev_sel = 0;
-	int cur_col = prompt_col;
-	for (int i = 0; i < epos; i++) {
+	int rel_col = 0;
+	i = 0;
+
+	while (i < epos) {
+		int len = 1, w = 1;
+		unsigned char c = (unsigned char)buf[i];
+
+		if (ISCTRL(c)) {
+			w = 2;
+			len = 1;
+		} else if (c >= 0x80) {
+			w = utf8_width(&buf[i], epos - i, &len);
+			if (w < 0) {
+				w = 1;
+				len = 1;
+			}
+		}
+
+		if (rel_col + w <= mb_hscroll) {
+			rel_col += w;
+			i += len;
+			continue;
+		}
+
+		if (cur_screen_col + w - 1 > text_end_col)
+			break;
+
 		int in_sel = (s1 >= 0 && i >= s1 && i < s2);
 		if (in_sel != in_prev_sel) {
 			if (in_sel)
@@ -1106,27 +1243,44 @@ redraw_minibuf(const char *buf, int epos, int cpos, int mark_pos, int prompt_col
 				ttcolor(CTEXT);
 			in_prev_sel = in_sel;
 		}
-		if (ISCTRL(buf[i])) {
+		if (ISCTRL(c)) {
 			ttputc('^');
-			ttputc(CCHR(buf[i]));
-			cur_col += 2;
+			ttputc(CCHR(c));
 		} else {
-			ttputc(buf[i]);
-			cur_col++;
+			for (int k = 0; k < len; k++)
+				ttputc(buf[i + k]);
 		}
+		cur_screen_col += w;
+		rel_col += w;
+		i += len;
 	}
+
+	if (in_prev_sel)
+		ttcolor(CTEXT);
+
+	if (has_right) {
+		while (cur_screen_col < max_screen_col) {
+			ttputc(' ');
+			cur_screen_col++;
+		}
+		ttcolor(CTEXT);
+		ttputc('$');
+		cur_screen_col++;
+	}
+
 	ttcolor(CTEXT);
-	ttcol = cur_col;
+	ttcol = cur_screen_col;
 	tteeol();
 
-	int target_col = prompt_col;
-	for (int i = 0; i < cpos; i++) {
-		if (ISCTRL(buf[i]))
-			target_col += 2;
-		else
-			target_col++;
-	}
-	/* Invalidate ttcol to guarantee cursor position is emitted to physical terminal */
+	int target_col = prompt_col + has_left + (cursor_col - mb_hscroll);
+	int max_cursor_col = has_right ? (ncol - 3) : (ncol - 2);
+	if (target_col > max_cursor_col)
+		target_col = max_cursor_col;
+	if (target_col < prompt_col)
+		target_col = prompt_col;
+	if (target_col >= ncol - 1)
+		target_col = ncol - 2;
+
 	ttcol = HUGE;
 	ttmove(nrow - 1, target_col);
 	ttflush();
