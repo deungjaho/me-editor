@@ -534,6 +534,7 @@ int		 negative_argument(int, int);
 int		 ask_selfinsert(int, int);
 int		 selfinsert(int, int);
 int		 quote(int, int);
+int		 bracketed_paste(int, int);
 
 /* main.c */
 int		 ctrlg(int, int);
@@ -687,6 +688,7 @@ int		 spawncli(int, int);
 
 /* ttykbd.c X */
 void		 ttykeymapinit(void);
+void		 ttykeymapenable(void);
 void		 ttykeymaptidy(void);
 
 /* match.c X */

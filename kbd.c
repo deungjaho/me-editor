@@ -699,6 +699,96 @@ quote(int f, int n)
 	return (selfinsert(f, n));
 }
 
+enum paste_end_state {
+	PASTE_TEXT = 0,
+	PASTE_ESC,
+	PASTE_CSI,
+	PASTE_2,
+	PASTE_20,
+	PASTE_201
+};
+
+static void
+paste_flush(char *buf, size_t *len, int *ok)
+{
+	if (*len > 0) {
+		if (*ok && linsert_buf(buf, (int)*len) != TRUE)
+			*ok = FALSE;
+		*len = 0;
+	}
+}
+
+static void
+paste_emit_byte(unsigned char b, char *buf, size_t bufcap, size_t *len,
+    int *prev_cr, int *ok)
+{
+	if (b == '\r') {
+		paste_flush(buf, len, ok);
+		if (*ok && lnewline() != TRUE)
+			*ok = FALSE;
+		*prev_cr = 1;
+		return;
+	}
+	if (b == '\n') {
+		paste_flush(buf, len, ok);
+		if (!*prev_cr && *ok && lnewline() != TRUE)
+			*ok = FALSE;
+		*prev_cr = 0;
+		return;
+	}
+	*prev_cr = 0;
+	if (!*ok)
+		return;
+	/* Flush on UTF-8 lead/ASCII boundaries near capacity to avoid split codepoints. */
+	if (*len >= bufcap || (*len >= bufcap - 4 && (b & 0xC0) != 0x80))
+		paste_flush(buf, len, ok);
+	if (*ok)
+		buf[(*len)++] = (char)b;
+}
+
+/*
+ * Consume a terminal bracketed paste (\e[200~ ... \e[201~) and insert its
+ * contents literally without triggering auto-indent, autopair, or fill.
+ */
+int
+bracketed_paste(int f, int n)
+{
+	static const char	 paste_end[] = "\033[201~";
+	enum paste_end_state	 state = PASTE_TEXT;
+	char			 buf[256];
+	size_t			 len = 0;
+	int			 prev_cr = 0;
+	int			 ok = TRUE;
+	int			 i, raw;
+	unsigned char		 c;
+
+	undo_boundary_enable(FFRAND, 0);
+	for (;;) {
+		raw = nextkey();
+		c = (unsigned char)raw;
+		if (c == (unsigned char)paste_end[state]) {
+			if (state == PASTE_201)
+				break;
+			state = (enum paste_end_state)(state + 1);
+			continue;
+		}
+		if (state != PASTE_TEXT) {
+			for (i = 0; i < (int)state; i++)
+				paste_emit_byte((unsigned char)paste_end[i],
+				    buf, sizeof(buf), &len, &prev_cr, &ok);
+			state = PASTE_TEXT;
+			if (c == (unsigned char)paste_end[0]) {
+				state = PASTE_ESC;
+				continue;
+			}
+		}
+		paste_emit_byte(c, buf, sizeof(buf), &len, &prev_cr, &ok);
+	}
+	paste_flush(buf, &len, &ok);
+	undo_boundary_enable(FFRAND, 1);
+	return (ok);
+}
+
 /*
  * Wrapper function to count invocation repeats.
  * We ignore any function whose sole purpose is to get us

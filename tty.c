@@ -154,6 +154,7 @@ ttreinit(void)
 		/* turn on keypad */
 		putpad(keypad_xmit, 1);
 
+	ttykeymapenable();
 	ttresize();
 }
 

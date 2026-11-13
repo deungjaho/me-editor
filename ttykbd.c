@@ -89,6 +89,7 @@ ttykeymapinit(void)
 	/* Bind NBSP (Option-Space on macOS Cocoa terminal) to set-mark-command */
 	dobindkey(fundamental_map, "set-mark-command", "\xc2\xa0");
 	dobindkey(fundamental_map, "set-mark-command", "\\e ");
+	dobindkey(fundamental_map, "bracketed-paste", "\\e[200~");
 
 	if ((cp = getenv("TERM")) != NULL &&
 	    (ffp = startupfile(cp, NULL, file, sizeof(file))) != NULL) {
@@ -100,14 +101,19 @@ ttykeymapinit(void)
 		/* turn on keypad */
 		putpad(keypad_xmit, 1);
 
-	/*
-	 * Ask terminals that support it to report modified keys
-	 * unambiguously: xterm modifyOtherKeys level 1 (only combos with no
-	 * legacy byte form change) and kitty disambiguate (all modified
-	 * keys become CSI u, translated back in getkey).  Terminals that
-	 * support neither ignore these.
-	 */
-	(void)fputs("\033[>4;1m\033[>1u", stdout);
+	ttykeymapenable();
+}
+
+/*
+ * Ask terminals that support it to report modified keys unambiguously (xterm
+ * modifyOtherKeys level 1, kitty disambiguate) and enable bracketed paste.
+ * Terminals that support neither ignore these.  Called at startup and C-z resume.
+ */
+void
+ttykeymapenable(void)
+{
+	ttputs("\033[>4;1m\033[>1u\033[?2004h");
+	ttflush();
 }
 
 /*
@@ -116,9 +122,10 @@ ttykeymapinit(void)
 void
 ttykeymaptidy(void)
 {
-	/* restore keyboard reporting modes pushed in ttykeymapinit */
-	(void)fputs("\033[<u\033[>4;0m", stdout);
+	/* restore keyboard reporting and bracketed paste modes */
+	ttputs("\033[?2004l\033[<u\033[>4;0m");
 	if (keypad_local)
 		/* turn off keypad */
 		putpad(keypad_local, 1);
+	ttflush();
 }

@@ -56,6 +56,7 @@ static struct funmap functnames[] = {
 	{gotobob, "beginning-of-buffer", 0},
 	{gotobol, "beginning-of-line", 0},
 	{showmatch, "blink-and-insert", 1},		/* startup only	*/
+	{bracketed_paste, "bracketed-paste", 0},
 	{bsmap, "bsmap-mode", 0},
 	{NULL, "c-x 4 prefix", 0},			/* internal	*/
 	{NULL, "c-x prefix", 0},			/* internal	*/
