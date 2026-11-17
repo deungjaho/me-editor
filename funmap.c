@@ -114,6 +114,7 @@ static struct funmap functnames[] = {
 	{swapmark, "exchange-point-and-mark", 0},
 	{extend, "execute-extended-command", 1},
 	{fillpara, "fill-paragraph", 0},
+	{finder, "finder", 0},
 	{filevisitalt, "find-alternate-file", 1},
 	{filevisit, "find-file", 1},
 	{poptofile, "find-file-other-window", 1},

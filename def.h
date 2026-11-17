@@ -389,6 +389,7 @@ int		 getcwdir(char *, size_t);
 int		 makedir(int, int);
 int		 do_makedir(char *);
 int		 ask_makedir(void);
+int		 finder(int, int);
 
 /* dired.c */
 struct buffer	*dired_(char *);

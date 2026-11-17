@@ -11,6 +11,10 @@
 
 #include <sys/queue.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <libgen.h>
 #include <signal.h>
 #include <stdio.h>
 #include <string.h>
@@ -176,5 +180,94 @@ do_makedir(char *path)
 
 	eerase();
 	umask(oumask);
+	return (TRUE);
+}
+
+int
+finder(int f, int n)
+{
+	char	 dpath[NFILEN];
+	char	*adj;
+	pid_t	 pid;
+	int	 status;
+
+	if (curbp->b_fname[0] != '\0') {
+		if (fisdir(curbp->b_fname) == TRUE) {
+			if (strlcpy(dpath, curbp->b_fname, sizeof(dpath)) >= sizeof(dpath))
+				return (FALSE);
+		} else {
+			char ts[NFILEN], *d;
+
+			if (strlcpy(ts, curbp->b_fname, sizeof(ts)) >= sizeof(ts))
+				return (FALSE);
+			d = dirname(ts);
+			if (d == NULL || strlcpy(dpath, d, sizeof(dpath)) >= sizeof(dpath))
+				return (FALSE);
+		}
+	} else if (curbp->b_cwd[0] != '\0') {
+		if (strlcpy(dpath, curbp->b_cwd, sizeof(dpath)) >= sizeof(dpath))
+			return (FALSE);
+	} else {
+		if (getcwdir(dpath, sizeof(dpath)) == FALSE)
+			(void)strlcpy(dpath, ".", sizeof(dpath));
+	}
+
+	if ((adj = adjustname(dpath, TRUE)) == NULL)
+		return (FALSE);
+	(void)strlcpy(dpath, adj, sizeof(dpath));
+
+	if (fisdir(dpath) != TRUE) {
+		dobeep();
+		ewprintf("Not a directory: %s", dpath);
+		return (FALSE);
+	}
+
+	pid = fork();
+	if (pid == -1) {
+		dobeep();
+		ewprintf("Can't fork: %s", strerror(errno));
+		return (FALSE);
+	}
+
+	if (pid == 0) {
+		pid_t	cpid;
+		int	devnull;
+
+		cpid = fork();
+		if (cpid == -1)
+			_exit(1);
+		if (cpid > 0)
+			_exit(0);
+
+		devnull = open("/dev/null", O_RDWR);
+		if (devnull != -1) {
+			dup2(devnull, STDIN_FILENO);
+			dup2(devnull, STDOUT_FILENO);
+			dup2(devnull, STDERR_FILENO);
+			if (devnull > STDERR_FILENO)
+				close(devnull);
+		}
+		setsid();
+
+#ifdef __APPLE__
+		execlp("open", "open", dpath, (char *)NULL);
+#else
+		execlp("xdg-open", "xdg-open", dpath, (char *)NULL);
+		execlp("gio", "gio", "open", dpath, (char *)NULL);
+		execlp("nautilus", "nautilus", dpath, (char *)NULL);
+		execlp("dolphin", "dolphin", dpath, (char *)NULL);
+		execlp("thunar", "thunar", dpath, (char *)NULL);
+#endif
+		_exit(1);
+	}
+
+	waitpid(pid, &status, 0);
+	if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
+		dobeep();
+		ewprintf("Failed to open file manager");
+		return (FALSE);
+	}
+
+	ewprintf("Opened %s", dpath);
 	return (TRUE);
 }
