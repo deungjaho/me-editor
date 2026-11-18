@@ -1329,8 +1329,9 @@ dired_jump(int f, int n)
 int
 d_gotofile(int f, int n)
 {
+	struct buffer	*bp;
 	size_t		 lenfpath;
-	char		 fpath[NFILEN];
+	char		 fpath[NFILEN], dname[NFILEN];
 	char		*fpth, *fnp = NULL;
 
 	if (getbufcwd(fpath, sizeof(fpath)) != TRUE)
@@ -1348,7 +1349,19 @@ d_gotofile(int f, int n)
 		ewprintf("No file to find");	/* Current directory given so  */
 		return (TRUE);			/* return at present location. */
 	}
-	return gotofile(fpth);
+	(void)strlcpy(fpath, fpth, sizeof(fpath));
+
+	/* If the target lives elsewhere, open its directory first. */
+	(void)xdirname(dname, fpath, sizeof(dname));
+	(void)strlcat(dname, "/", sizeof(dname));
+	if (strcmp(dname, curbp->b_fname) != 0) {
+		if ((bp = dired_(dname)) == NULL)
+			return (FALSE);
+		curbp = bp;
+		if (showbuffer(bp, curwp, WFFULL | WFMODE) != TRUE)
+			return (FALSE);
+	}
+	return gotofile(fpath);
 }
 
 int
