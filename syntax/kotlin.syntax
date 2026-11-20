@@ -1,0 +1,135 @@
+# Kotlin syntax definition for me
+
+flags: annotations
+
+# Control flow, Operators & Coroutines (Key Intent for Kotlin)
+control: as
+control: break
+control: catch
+control: continue
+control: do
+control: else
+control: finally
+control: for
+control: if
+control: in
+control: is
+control: return
+control: suspend
+control: throw
+control: try
+control: when
+control: while
+
+# Keywords & Declarations
+keyword: abstract
+keyword: actual
+keyword: annotation
+keyword: by
+keyword: class
+keyword: companion
+keyword: const
+keyword: constructor
+keyword: crossinline
+keyword: data
+keyword: delegate
+keyword: dynamic
+keyword: enum
+keyword: expect
+keyword: external
+keyword: field
+keyword: final
+keyword: fun
+keyword: get
+keyword: import
+keyword: init
+keyword: infix
+keyword: inline
+keyword: inner
+keyword: interface
+keyword: internal
+keyword: it
+keyword: lateinit
+keyword: noinline
+keyword: object
+keyword: open
+keyword: operator
+keyword: out
+keyword: override
+keyword: package
+keyword: param
+keyword: private
+keyword: protected
+keyword: public
+keyword: receiver
+keyword: reified
+keyword: sealed
+keyword: set
+keyword: setparam
+keyword: super
+keyword: tailrec
+keyword: this
+keyword: typealias
+keyword: typeof
+keyword: val
+keyword: value
+keyword: var
+keyword: vararg
+keyword: where
+
+# Built-in types
+type: Byte
+type: UByte
+type: Short
+type: UShort
+type: Int
+type: UInt
+type: Long
+type: ULong
+type: Float
+type: Double
+type: Char
+type: Boolean
+type: String
+type: Unit
+type: Any
+type: Nothing
+type: Array
+type: ByteArray
+type: CharArray
+
+# Standard library types & scope functions (neutral to reduce noise)
+keyword: List
+keyword: MutableList
+keyword: Map
+keyword: MutableMap
+keyword: Set
+keyword: MutableSet
+keyword: Pair
+keyword: Triple
+keyword: Collection
+keyword: Sequence
+keyword: Iterable
+keyword: Comparable
+keyword: Throwable
+keyword: Exception
+keyword: lazy
+keyword: let
+keyword: run
+keyword: apply
+keyword: also
+keyword: with
+
+# Strings
+string: """ """
+string: " "
+string: ' '
+
+# Comments
+line_comment: //
+block_comment: /* */
+
+# Constants
+constant: true
+constant: false
+constant: null

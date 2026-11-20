@@ -1,0 +1,85 @@
+# Windows batch (.bat/.cmd) syntax definition for me
+
+flags: case_insensitive
+
+# Control flow (rose/magenta)
+control: call
+control: do
+control: else
+control: exit
+control: for
+control: goto
+control: if
+control: in
+control: not
+control: shift
+
+# Commands & modifiers
+keyword: assoc
+keyword: break
+keyword: cd
+keyword: chdir
+keyword: cls
+keyword: color
+keyword: copy
+keyword: date
+keyword: defined
+keyword: del
+keyword: dir
+keyword: echo
+keyword: echo.
+keyword: enableextensions
+keyword: enabledelayedexpansion
+keyword: endlocal
+keyword: erase
+keyword: errorlevel
+keyword: exist
+keyword: ftype
+keyword: md
+keyword: mkdir
+keyword: mklink
+keyword: move
+keyword: path
+keyword: pause
+keyword: popd
+keyword: prompt
+keyword: pushd
+keyword: rd
+keyword: rem
+keyword: ren
+keyword: rename
+keyword: rmdir
+keyword: set
+keyword: setlocal
+keyword: start
+keyword: time
+keyword: timeout
+keyword: title
+keyword: type
+keyword: ver
+keyword: vol
+keyword: xcopy
+
+# Comparison operators (as keywords)
+keyword: equ
+keyword: neq
+keyword: lss
+keyword: leq
+keyword: gtr
+keyword: geq
+
+# Environment variable expansion %VAR% / %%i
+prefix: %
+
+# Labels :name
+prefix: :
+
+# Strings
+string: " "
+
+# Comments
+line_comment: ::
+
+# Constants
+constant: on
+constant: off

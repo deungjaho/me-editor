@@ -1,0 +1,91 @@
+# Haskell syntax definition for me
+
+# Control flow & Structure (Key Intent for Haskell)
+control: case
+control: do
+control: else
+control: if
+control: in
+control: let
+control: mdo
+control: of
+control: proc
+control: rec
+control: then
+control: where
+
+# Keywords & Declarations
+keyword: as
+keyword: class
+keyword: data
+keyword: default
+keyword: deriving
+keyword: family
+keyword: forall
+keyword: foreign
+keyword: hiding
+keyword: import
+keyword: infix
+keyword: infixl
+keyword: infixr
+keyword: instance
+keyword: module
+keyword: newtype
+keyword: pattern
+keyword: qualified
+keyword: role
+keyword: stock
+keyword: type
+keyword: via
+
+# Prelude types
+type: Bool
+type: Char
+type: Double
+type: Either
+type: Float
+type: IO
+type: Int
+type: Integer
+type: Maybe
+type: Ordering
+type: String
+
+# Prelude functions (neutral to reduce noise)
+keyword: otherwise
+keyword: undefined
+keyword: error
+keyword: map
+keyword: filter
+keyword: foldr
+keyword: foldl
+keyword: zip
+keyword: concat
+keyword: head
+keyword: tail
+keyword: null
+keyword: length
+keyword: reverse
+keyword: show
+keyword: read
+keyword: print
+keyword: putStrLn
+keyword: return
+keyword: pure
+keyword: fmap
+
+# Strings & chars
+string: " "
+string: ' '
+
+# Comments
+line_comment: --
+block_comment: {- -}
+
+# Constants
+constant: True
+constant: False
+constant: Nothing
+constant: LT
+constant: EQ
+constant: GT

@@ -1,0 +1,143 @@
+# C# syntax definition for me
+
+flags: annotations
+
+# Control flow, Async & Exceptions (Key Intent for C#)
+control: break
+control: case
+control: catch
+control: continue
+control: default
+control: do
+control: else
+control: finally
+control: for
+control: foreach
+control: goto
+control: if
+control: in
+control: lock
+control: return
+control: switch
+control: throw
+control: try
+control: while
+control: yield
+control: async
+control: await
+control: when
+
+# Keywords & Declarations
+keyword: abstract
+keyword: add
+keyword: as
+keyword: base
+keyword: checked
+keyword: class
+keyword: const
+keyword: delegate
+keyword: dynamic
+keyword: enum
+keyword: event
+keyword: explicit
+keyword: extern
+keyword: fixed
+keyword: get
+keyword: implicit
+keyword: interface
+keyword: internal
+keyword: is
+keyword: nameof
+keyword: namespace
+keyword: new
+keyword: operator
+keyword: out
+keyword: override
+keyword: params
+keyword: partial
+keyword: private
+keyword: protected
+keyword: public
+keyword: readonly
+keyword: record
+keyword: ref
+keyword: remove
+keyword: required
+keyword: sealed
+keyword: set
+keyword: sizeof
+keyword: stackalloc
+keyword: static
+keyword: struct
+keyword: this
+keyword: typeof
+keyword: unchecked
+keyword: unsafe
+keyword: using
+keyword: var
+keyword: virtual
+keyword: void
+keyword: volatile
+keyword: init
+keyword: with
+keyword: file
+keyword: global
+
+# Built-in types
+type: bool
+type: byte
+type: sbyte
+type: char
+type: decimal
+type: double
+type: float
+type: int
+type: uint
+type: nint
+type: nuint
+type: long
+type: ulong
+type: short
+type: ushort
+type: object
+type: string
+
+# Standard library types (neutral to reduce noise)
+keyword: String
+keyword: Object
+keyword: Console
+keyword: Exception
+keyword: Math
+keyword: Task
+keyword: ValueTask
+keyword: List
+keyword: Dictionary
+keyword: HashSet
+keyword: IEnumerable
+keyword: IEnumerator
+keyword: DateTime
+keyword: TimeSpan
+keyword: Guid
+keyword: StringBuilder
+keyword: IDisposable
+keyword: Action
+keyword: Func
+keyword: Predicate
+keyword: EventArgs
+keyword: Nullable
+
+# Strings
+string: " "
+string: ' '
+
+# Comments
+line_comment: //
+block_comment: /* */
+
+# Constants
+constant: true
+constant: false
+constant: null
+constant: TRUE
+constant: FALSE
+constant: NULL

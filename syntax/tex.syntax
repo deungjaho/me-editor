@@ -1,0 +1,17 @@
+# TeX/LaTeX syntax definition for me
+
+# Commands \foo (rose)
+prefix: control \
+
+# Inline math $...$
+string: $ $
+
+# Display math \[ \]
+string: \[ \]
+
+# Comments
+line_comment: %
+
+# Constants
+constant: true
+constant: false

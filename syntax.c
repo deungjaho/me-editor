@@ -325,6 +325,23 @@ match_rule_char_lit(struct syntax_table *st, const struct syn_rule *rule,
     return 1;
 }
 
+/* Whole-line coloring when the line starts with the given prefix (diff +/-/@@) */
+static int
+match_rule_line_color(struct syntax_table *st, const struct syn_rule *rule,
+                      const char *text, int pos, int textlen,
+                      int *match_len, int *color, int *state)
+{
+    (void)st;
+    (void)state;
+    if (pos != 0)
+        return 0;
+    if (!match_at(text, pos, textlen, rule->sr_start))
+        return 0;
+    *color = rule->sr_color;
+    *match_len = textlen - pos;
+    return 1;
+}
+
 static int
 match_rule_prefix(struct syntax_table *st, const struct syn_rule *rule,
                   const char *text, int pos, int textlen,
@@ -567,6 +584,40 @@ syn_rule_add(struct syntax_table *st, int type, int color,
     }
 }
 
+/*
+ * Parse a leading color word ("control", "keyword", "type", "string",
+ * "comment", "number") from a rule spec.  Advances *spec past it.
+ */
+static int
+parse_color_word(char **spec, int default_color)
+{
+    char *s = *spec;
+    int color = default_color;
+    if (strncmp(s, "control", 7) == 0) {
+        color = SCOLOR_CONTROL;
+        s += 7;
+    } else if (strncmp(s, "keyword", 7) == 0) {
+        color = SCOLOR_KEYWORD;
+        s += 7;
+    } else if (strncmp(s, "type", 4) == 0) {
+        color = SCOLOR_TYPE;
+        s += 4;
+    } else if (strncmp(s, "string", 6) == 0) {
+        color = SCOLOR_STRING;
+        s += 6;
+    } else if (strncmp(s, "comment", 7) == 0) {
+        color = SCOLOR_COMMENT;
+        s += 7;
+    } else if (strncmp(s, "number", 6) == 0) {
+        color = SCOLOR_NUMBER;
+        s += 6;
+    } else {
+        return color;
+    }
+    *spec = skip_ws(s);
+    return color;
+}
+
 struct syntax_table *
 syntax_load(const char *path)
 {
@@ -606,26 +657,17 @@ syntax_load(const char *path)
             }
         } else if (strncmp(p, "prefix:", 7) == 0) {
             char *spec = skip_ws(p + 7);
-            int color = SCOLOR_CONTROL;
-            if (strncmp(spec, "control", 7) == 0) {
-                color = SCOLOR_CONTROL;
-                spec = skip_ws(spec + 7);
-            } else if (strncmp(spec, "keyword", 7) == 0) {
-                color = SCOLOR_KEYWORD;
-                spec = skip_ws(spec + 7);
-            } else if (strncmp(spec, "type", 4) == 0) {
-                color = SCOLOR_TYPE;
-                spec = skip_ws(spec + 4);
-            } else if (strncmp(spec, "string", 6) == 0) {
-                color = SCOLOR_STRING;
-                spec = skip_ws(spec + 6);
-            } else if (strncmp(spec, "comment", 7) == 0) {
-                color = SCOLOR_COMMENT;
-                spec = skip_ws(spec + 7);
-            }
+            int color = parse_color_word(&spec, SCOLOR_CONTROL);
             if (*spec != '\0') {
                 syn_rule_add(st, SRULE_PREFIX, color,
                              strdup(spec), NULL, match_rule_prefix);
+            }
+        } else if (strncmp(p, "line:", 5) == 0) {
+            char *spec = skip_ws(p + 5);
+            int color = parse_color_word(&spec, SCOLOR_COMMENT);
+            if (*spec != '\0') {
+                syn_rule_add(st, SRULE_LINE_COLOR, color,
+                             strdup(spec), NULL, match_rule_line_color);
             }
         } else if (strncmp(p, "line_comment:", 13) == 0) {
             char *s, *e;
@@ -678,6 +720,8 @@ syntax_load(const char *path)
                                  strdup("["), NULL, match_rule_ini_section);
                 } else if (strcmp(tok, "ini_keys") == 0) {
                     st->st_flags |= SYNFLAG_INI_KEYS;
+                } else if (strcmp(tok, "yaml_keys") == 0) {
+                    st->st_flags |= SYNFLAG_YAML_KEYS;
                 } else if (strcmp(tok, "md_headers") == 0) {
                     syn_rule_add(st, SRULE_MD_HEADER, SCOLOR_CONTROL,
                                  strdup("#"), NULL, match_rule_md_header);
@@ -1244,6 +1288,14 @@ syn_match_line(struct buffer *bp, struct line *prev, struct line *lp,
                 /* Exact fixed width types (e.g. u64, u128, i64, s64, f64) unless preceded by '.' */
                 if (!(i > 0 && text[i - 1] == '.' && (i == 1 || text[i - 2] != '.')))
                     memset(hue + i, SCOLOR_TYPE, wlen);
+            } else if ((st->st_flags & SYNFLAG_YAML_KEYS)) {
+                /* YAML key: word followed by ':' + space/EOL (not URLs like http://) */
+                int k = end;
+                while (k < textlen && (text[k] == ' ' || text[k] == '\t'))
+                    k++;
+                if (k < textlen && text[k] == ':' &&
+                    (k + 1 >= textlen || text[k + 1] == ' ' || text[k + 1] == '\t'))
+                    memset(hue + i, SCOLOR_CONTROL, wlen);
             } else if ((st->st_flags & SRULE_CSS_PROP) &&
                        end < textlen && text[end] == ':') {
                 /* CSS property name: only consider if preceded by indentation or ';' (not after selectors like a:hover) */
@@ -1261,11 +1313,11 @@ syn_match_line(struct buffer *bp, struct line *prev, struct line *lp,
                 if (is_prop && !(end + 1 < textlen && text[end + 1] == ':'))
                     memset(hue + i, SCOLOR_CONTROL, wlen);
             } else if ((st->st_flags & SYNFLAG_INI_KEYS)) {
-                /* INI/TOML key: word followed by '=' */
+                /* INI/TOML key: word followed by '=' or ':' */
                 int k = end;
                 while (k < textlen && (text[k] == ' ' || text[k] == '\t'))
                     k++;
-                if (k < textlen && text[k] == '=')
+                if (k < textlen && (text[k] == '=' || text[k] == ':'))
                     memset(hue + i, SCOLOR_KEYWORD, wlen);
             }
             i = end;
@@ -1407,6 +1459,32 @@ syntax_detect(const char *filename)
         lang = "makefile";
         goto found;
     }
+    if (strncasecmp(base, "Dockerfile", 10) == 0 &&
+        (base[10] == '\0' || base[10] == '.')) {
+        lang = "dockerfile";
+        goto found;
+    }
+    if (strcmp(base, ".env") == 0 || strncmp(base, ".env.", 5) == 0 ||
+        strcmp(base, ".editorconfig") == 0 ||
+        strcmp(base, ".gitignore") == 0 || strcmp(base, ".dockerignore") == 0 ||
+        strcmp(base, ".npmignore") == 0 || strcmp(base, ".eslintignore") == 0 ||
+        strcmp(base, ".prettierignore") == 0 ||
+        strcmp(base, ".gcloudignore") == 0 ||
+        strcmp(base, ".gitattributes") == 0) {
+        lang = "ini";
+        goto found;
+    }
+    if (strcmp(base, "Rakefile") == 0 || strcmp(base, "Gemfile") == 0 ||
+        strcmp(base, "Podfile") == 0 || strcmp(base, "Brewfile") == 0) {
+        lang = "ruby";
+        goto found;
+    }
+    if (strcmp(base, ".vimrc") == 0 || strcmp(base, "_vimrc") == 0 ||
+        strcmp(base, "vimrc") == 0 || strcmp(base, ".gvimrc") == 0 ||
+        strcmp(base, "_gvimrc") == 0 || strcmp(base, ".exrc") == 0) {
+        lang = "vim";
+        goto found;
+    }
 
     ext = strrchr(filename, '.');
     if (ext == NULL)
@@ -1415,6 +1493,12 @@ syntax_detect(const char *filename)
 
     if (strcmp(ext, "c") == 0 || strcmp(ext, "h") == 0)
         lang = "c";
+    else if (strcmp(ext, "cc") == 0 || strcmp(ext, "cpp") == 0 ||
+             strcmp(ext, "cxx") == 0 || strcmp(ext, "c++") == 0 ||
+             strcmp(ext, "hh") == 0 || strcmp(ext, "hpp") == 0 ||
+             strcmp(ext, "hxx") == 0 || strcmp(ext, "h++") == 0 ||
+             strcmp(ext, "inl") == 0)
+        lang = "cpp";
     else if (strcmp(ext, "py") == 0 || strcmp(ext, "pyw") == 0)
         lang = "python";
     else if (strcmp(ext, "sh") == 0 || strcmp(ext, "bash") == 0 ||
@@ -1431,6 +1515,8 @@ syntax_detect(const char *filename)
         lang = "rust";
     else if (strcmp(ext, "java") == 0)
         lang = "java";
+    else if (strcmp(ext, "kt") == 0 || strcmp(ext, "kts") == 0)
+        lang = "kotlin";
     else if (strcmp(ext, "php") == 0 || strcmp(ext, "phtml") == 0 ||
              strcmp(ext, "php3") == 0 || strcmp(ext, "php4") == 0 ||
              strcmp(ext, "php5") == 0 || strcmp(ext, "phps") == 0)
@@ -1452,11 +1538,20 @@ syntax_detect(const char *filename)
         lang = "elisp";
     else if (strcmp(ext, "sol") == 0)
         lang = "solidity";
-    else if (strcmp(ext, "json") == 0 || strcmp(ext, "jsonc") == 0)
+    else if (strcmp(ext, "json") == 0 || strcmp(ext, "jsonc") == 0 ||
+             strcmp(ext, "jsonl") == 0 || strcmp(ext, "ndjson") == 0)
         lang = "json";
     else if (strcmp(ext, "ini") == 0 || strcmp(ext, "conf") == 0 ||
-             strcmp(ext, "cfg") == 0)
+             strcmp(ext, "cfg") == 0 || strcmp(ext, "env") == 0 ||
+             strcmp(ext, "properties") == 0 ||
+             strcmp(ext, "editorconfig") == 0)
         lang = "ini";
+    else if (strcmp(ext, "yaml") == 0 || strcmp(ext, "yml") == 0)
+        lang = "yaml";
+    else if (strcmp(ext, "bat") == 0 || strcmp(ext, "cmd") == 0)
+        lang = "bat";
+    else if (strcmp(ext, "dockerfile") == 0)
+        lang = "dockerfile";
     else if (strcmp(ext, "toml") == 0)
         lang = "toml";
     else if (strcmp(ext, "move") == 0)
@@ -1480,6 +1575,36 @@ syntax_detect(const char *filename)
         lang = "css";
     else if (strcmp(ext, "wxs") == 0)
         lang = "js";
+    else if (strcmp(ext, "diff") == 0 || strcmp(ext, "patch") == 0)
+        lang = "diff";
+    else if (strcmp(ext, "rb") == 0 || strcmp(ext, "rake") == 0 ||
+             strcmp(ext, "gemspec") == 0 || strcmp(ext, "ru") == 0)
+        lang = "ruby";
+    else if (strcmp(ext, "lua") == 0)
+        lang = "lua";
+    else if (strcmp(ext, "pl") == 0 || strcmp(ext, "pm") == 0 ||
+             strcmp(ext, "t") == 0)
+        lang = "perl";
+    else if (strcmp(ext, "cs") == 0 || strcmp(ext, "csx") == 0)
+        lang = "csharp";
+    else if (strcmp(ext, "zig") == 0 || strcmp(ext, "zon") == 0)
+        lang = "zig";
+    else if (strcmp(ext, "hs") == 0 || strcmp(ext, "lhs") == 0)
+        lang = "haskell";
+    else if (strcmp(ext, "r") == 0 || strcmp(ext, "R") == 0)
+        lang = "r";
+    else if (strcmp(ext, "vim") == 0)
+        lang = "vim";
+    else if (strcmp(ext, "graphql") == 0 || strcmp(ext, "gql") == 0)
+        lang = "graphql";
+    else if (strcmp(ext, "proto") == 0)
+        lang = "proto";
+    else if (strcmp(ext, "tex") == 0 || strcmp(ext, "sty") == 0 ||
+             strcmp(ext, "cls") == 0)
+        lang = "tex";
+    else if (strcmp(ext, "asm") == 0 || strcmp(ext, "s") == 0 ||
+             strcmp(ext, "S") == 0)
+        lang = "asm";
     else
         return NULL;
 

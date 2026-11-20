@@ -1,0 +1,101 @@
+# Zig syntax definition for me
+
+flags: fixed_types
+
+# Control flow, Errors & Async (Key Intent for Zig)
+control: async
+control: await
+control: break
+control: catch
+control: continue
+control: defer
+control: else
+control: errdefer
+control: for
+control: if
+control: nosuspend
+control: orelse
+control: resume
+control: return
+control: suspend
+control: switch
+control: try
+control: unreachable
+control: while
+
+# Keywords & Declarations
+keyword: align
+keyword: allowzero
+keyword: anyframe
+keyword: asm
+keyword: callconv
+keyword: comptime
+keyword: const
+keyword: enum
+keyword: error
+keyword: export
+keyword: extern
+keyword: fn
+keyword: inline
+keyword: linksection
+keyword: noalias
+keyword: noinline
+keyword: opaque
+keyword: packed
+keyword: pub
+keyword: struct
+keyword: test
+keyword: threadlocal
+keyword: union
+keyword: usingnamespace
+keyword: var
+keyword: volatile
+keyword: addrspace
+
+# Primitive types (iN/uN covered by fixed_types)
+type: f16
+type: f32
+type: f64
+type: f80
+type: f128
+type: isize
+type: usize
+type: c_char
+type: c_short
+type: c_ushort
+type: c_int
+type: c_uint
+type: c_long
+type: c_ulong
+type: c_longlong
+type: c_ulonglong
+type: c_longdouble
+type: bool
+type: void
+type: noreturn
+type: type
+type: anytype
+type: anyerror
+type: comptime_int
+type: comptime_float
+
+# Standard library roots (neutral to reduce noise)
+keyword: std
+keyword: builtin
+keyword: root
+keyword: self
+keyword: Self
+
+# Strings & character literals
+string: " "
+string: ' '
+string: \\ \\
+
+# Comments
+line_comment: //
+
+# Constants
+constant: true
+constant: false
+constant: null
+constant: undefined

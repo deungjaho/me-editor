@@ -1,0 +1,27 @@
+# Diff/Patch syntax definition for me
+# line: rules only match at column 0, so context lines are unaffected
+
+# File & metadata headers (neutral)
+line: keyword diff
+line: keyword index
+line: keyword ---
+line: keyword +++
+line: keyword Binary
+line: keyword new
+line: keyword old
+line: keyword deleted
+line: keyword similarity
+line: keyword dissimilarity
+line: keyword rename
+line: keyword copy
+line: keyword GIT
+
+# Hunk headers (cyan, like git's default)
+line: string @@
+
+# Added (green) / removed (rose) lines
+line: comment +
+line: control -
+
+# "\ No newline at end of file"
+line: comment \

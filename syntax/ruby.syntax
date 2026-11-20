@@ -1,0 +1,96 @@
+# Ruby syntax definition for me
+
+flags: annotations dollar_vars
+
+# Control flow, Exceptions & Iterators (Key Intent for Ruby)
+control: begin
+control: break
+control: case
+control: do
+control: else
+control: elsif
+control: end
+control: ensure
+control: for
+control: if
+control: in
+control: next
+control: raise
+control: redo
+control: rescue
+control: retry
+control: return
+control: then
+control: unless
+control: until
+control: when
+control: while
+control: yield
+
+# Keywords & Declarations
+keyword: alias
+keyword: attr_accessor
+keyword: attr_reader
+keyword: attr_writer
+keyword: class
+keyword: def
+keyword: defined
+keyword: extend
+keyword: include
+keyword: lambda
+keyword: module
+keyword: prepend
+keyword: private
+keyword: proc
+keyword: protected
+keyword: public
+keyword: require
+keyword: require_relative
+keyword: self
+keyword: super
+keyword: undef
+keyword: and
+keyword: not
+keyword: or
+keyword: BEGIN
+keyword: END
+keyword: __FILE__
+keyword: __LINE__
+
+# Standard library types (neutral to reduce noise)
+keyword: Array
+keyword: Hash
+keyword: String
+keyword: Integer
+keyword: Float
+keyword: Symbol
+keyword: Object
+keyword: Class
+keyword: Module
+keyword: Exception
+keyword: StandardError
+keyword: Enumerable
+keyword: Comparable
+keyword: Kernel
+keyword: puts
+keyword: print
+keyword: p
+keyword: gets
+keyword: chomp
+
+# Symbols & instance vars
+prefix: :
+prefix: $
+
+# Strings
+string: " "
+string: ' '
+
+# Comments
+line_comment: #
+block_comment: =begin =end
+
+# Constants
+constant: true
+constant: false
+constant: nil

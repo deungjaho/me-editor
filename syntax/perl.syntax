@@ -1,0 +1,101 @@
+# Perl syntax definition for me
+
+flags: annotations dollar_vars
+
+# Control flow & Exceptions (Key Intent for Perl)
+control: break
+control: continue
+control: do
+control: else
+control: elsif
+control: for
+control: foreach
+control: given
+control: goto
+control: if
+control: last
+control: next
+control: redo
+control: return
+control: unless
+control: until
+control: when
+control: while
+control: default
+control: die
+control: eval
+control: exit
+control: warn
+
+# Keywords & Declarations
+keyword: my
+keyword: our
+keyword: local
+keyword: state
+keyword: sub
+keyword: use
+keyword: no
+keyword: package
+keyword: require
+keyword: import
+keyword: BEGIN
+keyword: END
+keyword: CHECK
+keyword: INIT
+keyword: UNITCHECK
+keyword: and
+keyword: not
+keyword: or
+keyword: xor
+
+# Built-ins (neutral to reduce noise)
+keyword: bless
+keyword: chomp
+keyword: chop
+keyword: chr
+keyword: close
+keyword: defined
+keyword: each
+keyword: grep
+keyword: join
+keyword: keys
+keyword: lc
+keyword: lcfirst
+keyword: length
+keyword: map
+keyword: open
+keyword: ord
+keyword: pop
+keyword: print
+keyword: printf
+keyword: push
+keyword: ref
+keyword: reverse
+keyword: say
+keyword: scalar
+keyword: shift
+keyword: sort
+keyword: splice
+keyword: split
+keyword: sprintf
+keyword: substr
+keyword: tie
+keyword: tied
+keyword: uc
+keyword: ucfirst
+keyword: undef
+keyword: untie
+keyword: unshift
+keyword: values
+keyword: wantarray
+
+# Sigils: $var $#arr %hash (prefix rules run before '#' line-comment rule)
+prefix: $
+prefix: %
+
+# Strings
+string: " "
+string: ' '
+
+# Comments
+line_comment: #

@@ -1,0 +1,61 @@
+# GraphQL syntax definition for me
+
+flags: annotations
+
+# Operations (Key Intent for GraphQL)
+control: query
+control: mutation
+control: subscription
+control: fragment
+control: on
+
+# Schema keywords & Declarations
+keyword: directive
+keyword: enum
+keyword: extend
+keyword: implements
+keyword: input
+keyword: interface
+keyword: repeatable
+keyword: scalar
+keyword: schema
+keyword: type
+keyword: union
+keyword: QUERY
+keyword: MUTATION
+keyword: SUBSCRIPTION
+keyword: FIELD
+keyword: FIELD_DEFINITION
+keyword: OBJECT
+keyword: INTERFACE
+keyword: UNION
+keyword: ENUM
+keyword: ENUM_VALUE
+keyword: INPUT_OBJECT
+keyword: INPUT_FIELD_DEFINITION
+keyword: SCALAR
+keyword: ARGUMENT_DEFINITION
+keyword: FRAGMENT_DEFINITION
+keyword: FRAGMENT_SPREAD
+keyword: INLINE_FRAGMENT
+keyword: VARIABLE_DEFINITION
+keyword: SCHEMA
+
+# Built-in scalar types
+type: Int
+type: Float
+type: String
+type: Boolean
+type: ID
+
+# Strings (incl. block strings)
+string: """ """
+string: " "
+
+# Comments
+line_comment: #
+
+# Constants
+constant: true
+constant: false
+constant: null

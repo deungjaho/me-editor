@@ -1,0 +1,73 @@
+# Lua syntax definition for me
+
+# Control flow & Coroutines (Key Intent for Lua)
+control: break
+control: do
+control: else
+control: elseif
+control: end
+control: for
+control: goto
+control: if
+control: in
+control: repeat
+control: return
+control: then
+control: until
+control: while
+
+# Keywords & Declarations
+keyword: and
+keyword: function
+keyword: local
+keyword: not
+keyword: or
+keyword: require
+
+# Standard library (neutral to reduce noise)
+keyword: assert
+keyword: collectgarbage
+keyword: coroutine
+keyword: dofile
+keyword: error
+keyword: getmetatable
+keyword: io
+keyword: ipairs
+keyword: load
+keyword: math
+keyword: next
+keyword: os
+keyword: package
+keyword: pairs
+keyword: pcall
+keyword: print
+keyword: rawequal
+keyword: rawget
+keyword: rawlen
+keyword: rawset
+keyword: select
+keyword: setmetatable
+keyword: string
+keyword: table
+keyword: tonumber
+keyword: tostring
+keyword: type
+keyword: unpack
+keyword: utf8
+keyword: xpcall
+keyword: _G
+keyword: _VERSION
+
+# Strings
+string: " "
+string: ' '
+string: [[ ]]
+
+# Comments
+line_comment: --
+block_comment: --[[ ]]
+
+# Constants
+constant: true
+constant: false
+constant: nil

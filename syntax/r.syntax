@@ -1,0 +1,94 @@
+# R syntax definition for me
+
+# Control flow (Key Intent for R)
+control: break
+control: else
+control: for
+control: if
+control: in
+control: next
+control: repeat
+control: return
+control: while
+
+# Keywords & Declarations
+keyword: function
+keyword: library
+keyword: require
+keyword: source
+
+# Common generics & constructors (neutral to reduce noise)
+keyword: c
+keyword: list
+keyword: vector
+keyword: matrix
+keyword: array
+keyword: data.frame
+keyword: factor
+keyword: print
+keyword: cat
+keyword: paste
+keyword: paste0
+keyword: summary
+keyword: str
+keyword: length
+keyword: nrow
+keyword: ncol
+keyword: head
+keyword: tail
+keyword: sapply
+keyword: lapply
+keyword: apply
+keyword: tapply
+keyword: mapply
+keyword: seq
+keyword: rep
+keyword: names
+keyword: colnames
+keyword: rownames
+keyword: rbind
+keyword: cbind
+keyword: merge
+keyword: subset
+keyword: transform
+keyword: aggregate
+keyword: table
+keyword: order
+keyword: sort
+keyword: unique
+keyword: which
+keyword: is.na
+keyword: na.omit
+keyword: assign
+keyword: get
+keyword: exists
+keyword: ls
+keyword: rm
+keyword: setwd
+keyword: getwd
+keyword: read.csv
+keyword: read.table
+keyword: write.csv
+keyword: write.table
+keyword: library.dynam
+
+# Strings & backtick-quoted names
+string: " "
+string: ' '
+string: ` `
+
+# Comments
+line_comment: #
+
+# Constants
+constant: TRUE
+constant: FALSE
+constant: T
+constant: F
+constant: NULL
+constant: NA
+constant: NaN
+constant: Inf
+constant: NA_integer_
+constant: NA_real_
+constant: NA_character_

@@ -1,0 +1,41 @@
+# Dockerfile syntax definition for me
+
+flags: dollar_vars case_insensitive
+
+# Instructions
+keyword: FROM
+keyword: AS
+keyword: RUN
+keyword: CMD
+keyword: ENTRYPOINT
+keyword: COPY
+keyword: ADD
+keyword: WORKDIR
+keyword: ENV
+keyword: ARG
+keyword: EXPOSE
+keyword: USER
+keyword: VOLUME
+keyword: LABEL
+keyword: HEALTHCHECK
+keyword: SHELL
+keyword: ONBUILD
+keyword: STOPSIGNAL
+keyword: MAINTAINER
+keyword: CHECK
+keyword: NONE
+keyword: INTERVAL
+keyword: TIMEOUT
+keyword: RETRIES
+keyword: START_PERIOD
+keyword: START_INTERVAL
+
+# Variable expansion ${VAR} / $VAR
+prefix: $
+
+# Strings
+string: " "
+string: ' '
+
+# Comments
+line_comment: #
