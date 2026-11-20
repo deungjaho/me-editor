@@ -83,6 +83,7 @@ enum {
 #define SYNFLAG_NO_AUTOPAIR  0x80   /* Disable auto-pairing in this mode */
 #define SYNFLAG_CASE_INSENSITIVE 0x100 /* Case-insensitive keyword lookup (e.g. SQL) */
 #define SYNFLAG_YAML_KEYS    0x200   /* YAML: words followed by ':' are keys */
+#define SYNFLAG_CSS_PROP     0x400   /* CSS: words followed by ':' are property names */
 
 /* ---- data structures ---- */
 

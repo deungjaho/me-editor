@@ -581,6 +581,7 @@ filewrite(int f, int n)
 	bzero(&curbp->b_fi, sizeof(curbp->b_fi));
 	if ((s = writeout(&ffp, curbp, adjfname)) == TRUE) {
 		(void)strlcpy(curbp->b_fname, adjfname, sizeof(curbp->b_fname));
+		curbp->b_syntax = syntax_detect(curbp->b_fname);
 		if (getbufcwd(curbp->b_cwd, sizeof(curbp->b_cwd)) != TRUE)
 			(void)strlcpy(curbp->b_cwd, "/", sizeof(curbp->b_cwd));
 		if (augbname(bn, curbp->b_fname, sizeof(bn))

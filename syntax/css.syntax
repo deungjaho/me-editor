@@ -2,7 +2,7 @@
 # Property names (word followed by ':') are auto-detected (flags: css_props).
 # At-rules and keywords are defined here.
 
-flags: css_props
+flags: css_props hyphen_words dollar_vars
 
 # At-rules (rose/magenta)
 control: @media

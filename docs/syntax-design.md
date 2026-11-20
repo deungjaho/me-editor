@@ -776,3 +776,49 @@ struct line {
 - [ ] 10,000 行 C 文件滚动不卡顿
 - [ ] 大块注释文件滚动不卡顿
 - [ ] 频繁编辑时不卡顿
+
+---
+
+## 13. 后续扩展（2026-11）
+
+### 新增指令
+
+| 指令 | 说明 |
+|---|---|
+| `line: <color> <prefix>` | 行首（列 0）匹配 prefix 时整行染 `<color>` 色（control/keyword/type/string/comment/number）。用于 diff/patch：`+` 绿、`-` rose、`@@` cyan、文件头 sand。只有列 0 匹配，行中相同字符不误染 |
+| `prefix: [color] <pfx>` | 前缀+后续 word 字符染色，如 `$VAR`、`%hash`、`:sym`、`\cmd`、`g:var`。`$` 有特殊处理：`${VAR}`/`$(cmd)`/单字符变量 `$@ $# $1` |
+| `constant:` | 字面常量（true/false/null/nil），染 NUMBER 色 |
+
+### 新增 flags
+
+| flag | 说明 |
+|---|---|
+| `yaml_keys` | `key:`（冒号后跟空白/EOL）染 CONTROL 色，不误伤 `http://` 等值 |
+| `css_props` | `prop:` 染 CONTROL 色（要求缩进或 `;`/`{` 之后），独立位 `SYNFLAG_CSS_PROP=0x400` |
+| `case_insensitive` | 关键字哈希大小写不敏感（bat/Dockerfile） |
+| `annotations` | `@Name` 染 CONTROL 色（Java/Python/Ruby/GraphQL） |
+| `dollar_vars` / `hyphen_words` | `$`/`-` 计入 word 字符（shell/PHP/css/elisp） |
+| `ini_keys` | `key=` 或 `key:` 染 KEYWORD 色（ini/toml/env/properties） |
+| `ini_section` | `[section]` 染 CONTROL 色 |
+| `fixed_types` | `u8..u256`/`i8..i128`/`f32`/`f64` 等自动识别为 TYPE |
+| `json_keys` | `"key":` 染 KEYWORD 色 |
+| `lifetime`/`char_lit`/`tags`/`make_targets`/`md_*` | Rust lifetime、Jai `?x` 字符字面量、HTML tag、make target、markdown 元素 |
+
+### 语言文件查找路径
+
+按顺序查找，先命中先用（用户可覆盖系统默认）：
+
+1. `~/.me-syntax/<lang>.syntax`
+2. `<PREFIX>/share/me/syntax/<lang>.syntax`（`make install` 部署，`PREFIX` 编译时经 `-DME_SYNTAX_PREFIX` 写入）
+
+### 文件名检测
+
+除扩展名外按 basename 匹配：`Makefile*`、`Dockerfile*`、`Rakefile`/`Gemfile`/`Podfile`/`Brewfile`、`.vimrc`/`_vimrc`/`.gvimrc`/`.exrc`、shell rc 文件、`.env*`/`.editorconfig`/`.*ignore`/`.gitattributes`。
+
+### 已知限制
+
+- 块注释不记嵌套深度（Kotlin/Haskell 嵌套注释会提前闭合）
+- 无子 span 高亮，字符串插值 `"#{x}"`/`"${x}"` 整体单色
+- 跨行 heredoc（Ruby `<<~EOS`、Perl `=pod..=cut`）不可用 `block_comment` 之外的语义表达
+- `?`/`!` 不是 word 字符，Ruby 谓词方法 `nil?`/`empty!` 后缀单独着色
+- `SCOLOR_KEYWORD`/`SCOLOR_PREPROC` 主题色与 DEFAULT 相同（故意的中性设计）

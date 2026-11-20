@@ -708,7 +708,7 @@ syntax_load(const char *path)
                     syn_rule_add(st, SRULE_CHAR_LIT, SCOLOR_STRING,
                                  strdup("?"), NULL, match_rule_char_lit);
                 } else if (strcmp(tok, "css_props") == 0) {
-                    st->st_flags |= SRULE_CSS_PROP;
+                    st->st_flags |= SYNFLAG_CSS_PROP;
                 } else if (strcmp(tok, "hyphen_words") == 0) {
                     st->st_flags |= SYNFLAG_HYPHEN_WORDS;
                 } else if (strcmp(tok, "dollar_vars") == 0) {
@@ -1296,7 +1296,7 @@ syn_match_line(struct buffer *bp, struct line *prev, struct line *lp,
                 if (k < textlen && text[k] == ':' &&
                     (k + 1 >= textlen || text[k + 1] == ' ' || text[k + 1] == '\t'))
                     memset(hue + i, SCOLOR_CONTROL, wlen);
-            } else if ((st->st_flags & SRULE_CSS_PROP) &&
+            } else if ((st->st_flags & SYNFLAG_CSS_PROP) &&
                        end < textlen && text[end] == ':') {
                 /* CSS property name: only consider if preceded by indentation or ';' (not after selectors like a:hover) */
                 int is_prop = 0;
@@ -1619,6 +1619,10 @@ found:
         home = ".";
     snprintf(path, sizeof(path), _PATH_ME_SYNTAX, home, lang);
     st = syntax_load(path);
+    if (st == NULL) {
+        snprintf(path, sizeof(path), _PATH_ME_SYNTAX_SYS, lang);
+        st = syntax_load(path);
+    }
     if (st != NULL)
         st->st_lang = strdup(lang);
     return st;

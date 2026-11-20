@@ -5,6 +5,9 @@ CC =		cc
 CFLAGS =	-g -O2 -Wall -DREGEX -DMSG_NOSIGNAL=SO_NOSIGPIPE -DLOGIN_NAME_MAX=MAXLOGNAME
 PREFIX ?=	/usr/local
 MANDIR ?=	${PREFIX}/share/man
+DATADIR ?=	${PREFIX}/share
+
+CFLAGS +=	-DME_SYNTAX_PREFIX='"$(PREFIX)"'
 
 PROG =	me
 OBJS =	autoexec.o basic.o bell.o buffer.o cinfo.o dir.o display.o \
@@ -24,8 +27,10 @@ ${PROG}: ${OBJS}
 install:
 	install -d ${DESTDIR}${PREFIX}/bin
 	install -d ${DESTDIR}${MANDIR}/man1
+	install -d ${DESTDIR}${DATADIR}/me/syntax
 	install -c -s -m 755 ${PROG} ${DESTDIR}${PREFIX}/bin
 	install -c -m 644 me.1 ${DESTDIR}${MANDIR}/man1/${PROG}.1
+	install -c -m 644 syntax/*.syntax ${DESTDIR}${DATADIR}/me/syntax/
 
 test:
 	echo "No tests"
